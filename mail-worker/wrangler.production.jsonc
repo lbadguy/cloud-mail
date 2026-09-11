@@ -6,6 +6,13 @@
   "compatibility_date": "2026-09-05",
   "workers_dev": true,
   "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "mymail.lc7c.com",
+      "zone_id": "4a3a54a11971f4f3b00b1440556b1603",
+      "custom_domain": true
+    }
+  ],
   "d1_databases": [
     {
       "binding": "db",
