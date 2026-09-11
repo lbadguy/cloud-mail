@@ -104,25 +104,23 @@ jobs:
             Pop-Location
           }
 
-      - name: Back up production D1
+      - name: Confirm cloud database recovery point
+        id: database
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Path backup -Force | Out-Null
           Push-Location mail-worker
           try {
-            pnpm exec wrangler d1 export lc7c-cloud-mail-db --remote --config wrangler.production.jsonc --output ../backup/lc7c-cloud-mail-db.sql
-            if ($LASTEXITCODE -ne 0) { throw 'Production D1 backup failed.' }
+            $timestamp = [DateTimeOffset]::UtcNow.ToString('o')
+            $snapshot = pnpm exec wrangler d1 time-travel info lc7c-cloud-mail-db --timestamp $timestamp --config wrangler.production.jsonc --json | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or -not $snapshot.bookmark) {
+              throw 'Cloudflare D1 Time Travel recovery point could not be confirmed.'
+            }
+            "timestamp=$timestamp" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+            'Cloudflare D1 Time Travel recovery point confirmed.'
           } finally {
             Pop-Location
           }
-
-      - name: Upload database backup
-        uses: actions/upload-artifact@v4
-        with:
-          name: d1-before-${{ github.run_id }}
-          path: backup/lc7c-cloud-mail-db.sql
-          retention-days: 30
 
       - name: Deploy Worker
         id: deploy
