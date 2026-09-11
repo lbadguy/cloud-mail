@@ -29,6 +29,14 @@
               <div class="date">
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
+              <div class="tracking-status" v-if="email.type === 1 && (email.openCount || email.clickCount)">
+                <el-tag v-if="email.openCount" type="primary" effect="plain">
+                  {{ $t('possiblyOpened') }} · {{ email.openCount }} · {{ formatDetailDate(email.lastOpenedAt) }}
+                </el-tag>
+                <el-tag v-if="email.clickCount" type="success" effect="plain">
+                  {{ $t('linkClicked') }} · {{ email.clickCount }} · {{ formatDetailDate(email.lastClickedAt) }}
+                </el-tag>
+              </div>
             </div>
             <el-alert v-if="email.status === 3" :closable="false" :title="toMessage(email.message)" class="email-msg" type="error" show-icon />
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
@@ -266,6 +274,13 @@ const handleDelete = () => {
 }
 </script>
 <style scoped lang="scss">
+.tracking-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .box {
   height: 100%;
   overflow: hidden;

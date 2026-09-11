@@ -61,6 +61,12 @@
                     <el-tooltip effect="dark" :content="item.statusIcon.content">
                       <Icon :icon="item.statusIcon.icon" :style="`color: ${item.statusIcon.color}`" width="20" height="20"/>
                     </el-tooltip>
+                    <el-tooltip v-if="item.openCount" effect="dark" :content="item.openedContent">
+                      <Icon icon="material-symbols:done-all" color="#409EFF" width="20" height="20"/>
+                    </el-tooltip>
+                    <el-tooltip v-if="item.clickCount" effect="dark" :content="item.clickedContent">
+                      <Icon icon="mdi:cursor-default-click" color="#9B59B6" width="20" height="20"/>
+                    </el-tooltip>
                     <div class="del-status" v-if="item.isDel">
                       <el-tooltip effect="dark" :content="item.isDelContent">
                         <Icon class="icon" icon="mdi:email-remove" width="20" height="20"/>
@@ -877,6 +883,12 @@ function handleList(list) {
       email.isDelContent = t('selectDeleted');
     }
     email.statusIcon = statusIconMap[email.status];
+    if (email.openCount) {
+      email.openedContent = t('possiblyOpenedCount', {count: email.openCount, time: fromNow(email.lastOpenedAt)});
+    }
+    if (email.clickCount) {
+      email.clickedContent = t('linkClickedCount', {count: email.clickCount, time: fromNow(email.lastClickedAt)});
+    }
   })
 }
 

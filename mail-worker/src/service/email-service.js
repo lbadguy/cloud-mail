@@ -878,6 +878,46 @@ const emailService = {
 		}).where(eq(email.resendEmailId, resendEmailId)).returning().get();
 	},
 
+	async updateEmailEngagement(c, params) {
+		const { eventId, eventType, resendEmailId, occurredAt } = params;
+		const emailRow = await orm(c).select({ emailId: email.emailId })
+			.from(email)
+			.where(eq(email.resendEmailId, resendEmailId))
+			.get();
+
+		if (!emailRow) {
+			return null;
+		}
+
+		const insertResult = await c.env.db.prepare(`
+			INSERT OR IGNORE INTO email_tracking_event
+			(event_id, email_id, resend_email_id, event_type, occurred_at)
+			VALUES (?, ?, ?, ?, ?)
+		`).bind(eventId, emailRow.emailId, resendEmailId, eventType, occurredAt).run();
+
+		if (!insertResult.meta.changes) {
+			return emailRow;
+		}
+
+		if (eventType === 'email.opened') {
+			return orm(c).update(email).set({
+				firstOpenedAt: sql`coalesce(${email.firstOpenedAt}, ${occurredAt})`,
+				lastOpenedAt: occurredAt,
+				openCount: sql`${email.openCount} + 1`
+			}).where(eq(email.emailId, emailRow.emailId)).returning().get();
+		}
+
+		if (eventType === 'email.clicked') {
+			return orm(c).update(email).set({
+				firstClickedAt: sql`coalesce(${email.firstClickedAt}, ${occurredAt})`,
+				lastClickedAt: occurredAt,
+				clickCount: sql`${email.clickCount} + 1`
+			}).where(eq(email.emailId, emailRow.emailId)).returning().get();
+		}
+
+		return emailRow;
+	},
+
 	async selectUserEmailCountList(c, userIds, type, del = isDel.NORMAL) {
 		const result = await orm(c)
 			.select({

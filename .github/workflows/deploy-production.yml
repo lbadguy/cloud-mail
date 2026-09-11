@@ -1,0 +1,163 @@
+name: Deploy mymail production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mail-worker/**"
+      - "mail-vue/**"
+      - ".github/workflows/deploy-production.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lc7c-cloud-mail-production
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: windows-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    steps:
+      - name: Check deployment secrets
+        id: check
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $configured = @(
+            $env:CLOUDFLARE_API_TOKEN,
+            $env:CLOUDFLARE_ACCOUNT_ID,
+            $env:JWT_SECRET
+          ) | Where-Object { [string]::IsNullOrWhiteSpace($_) }
+          $ready = $configured.Count -eq 0
+          "configured=$($ready.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+          if (-not $ready) {
+            Write-Warning 'Production deployment skipped until CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and JWT_SECRET are configured.'
+          }
+
+  deploy:
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: windows-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            mail-worker/pnpm-lock.yaml
+            mail-vue/pnpm-lock.yaml
+
+      - name: Install and build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm --dir mail-vue install --frozen-lockfile
+          pnpm --dir mail-vue build
+          pnpm --dir mail-worker install --frozen-lockfile
+          Push-Location mail-worker
+          try {
+            pnpm exec vitest run --config vitest.unit.config.js
+            pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
+          } finally {
+            Pop-Location
+          }
+
+      - name: Record rollback version
+        id: previous
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location mail-worker
+          try {
+            $deployment = pnpm exec wrangler deployments status --config wrangler.production.jsonc --json | ConvertFrom-Json
+            $previous = $deployment.versions | Where-Object { $_.percentage -eq 100 } | Select-Object -First 1
+            if ($previous.version_id) {
+              "version=$($previous.version_id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+            }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Back up production D1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path backup -Force | Out-Null
+          Push-Location mail-worker
+          try {
+            pnpm exec wrangler d1 export lc7c-cloud-mail-db --remote --config wrangler.production.jsonc --output ../backup/lc7c-cloud-mail-db.sql
+          } finally {
+            Pop-Location
+          }
+
+      - name: Upload database backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: d1-before-${{ github.run_id }}
+          path: backup/lc7c-cloud-mail-db.sql
+          retention-days: 30
+
+      - name: Deploy Worker
+        id: deploy
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location mail-worker
+          try {
+            pnpm exec wrangler deploy --config wrangler.production.jsonc --keep-vars
+          } finally {
+            Pop-Location
+          }
+
+      - name: Apply compatible database initialization
+        shell: pwsh
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $encoded = [uri]::EscapeDataString($env:JWT_SECRET)
+          $response = Invoke-WebRequest -Uri "https://mymail.lc7c.com/api/init/$encoded" -UseBasicParsing -TimeoutSec 45
+          if ($response.StatusCode -ne 200 -or $response.Content.Trim() -ne 'success') {
+            throw "Database initialization failed: HTTP $($response.StatusCode)"
+          }
+
+      - name: Verify production health
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $response = Invoke-WebRequest -Uri 'https://mymail.lc7c.com' -UseBasicParsing -TimeoutSec 45
+          if ($response.StatusCode -ne 200 -or $response.Content.Length -lt 500) {
+            throw "Production health check failed: HTTP $($response.StatusCode)"
+          }
+
+      - name: Roll back Worker after failed deployment
+        if: failure() && steps.deploy.outcome == 'success' && steps.previous.outputs.version != ''
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location mail-worker
+          try {
+            pnpm exec wrangler rollback '${{ steps.previous.outputs.version }}' --config wrangler.production.jsonc --message 'Automatic rollback after failed health check' --yes
+          } finally {
+            Pop-Location
+          }

@@ -26,3 +26,12 @@ mail-vue/dist
 .wrangler
 .venv
 git-tools.js
+
+# Local deployment credentials and generated validation artifacts.
+.private/
+.dev.vars
+.dev.vars.*
+
+# Local automatic-update backups and temporary validation bundles.
+backup/
+mail-worker/.auto-update/

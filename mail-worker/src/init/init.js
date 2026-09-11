@@ -32,8 +32,41 @@ const dbInit = {
 		await this.v3_1DB(c);
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
+		await this.v3_4DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_4DB(c) {
+		const columns = [
+			`ALTER TABLE email ADD COLUMN first_opened_at TEXT;`,
+			`ALTER TABLE email ADD COLUMN last_opened_at TEXT;`,
+			`ALTER TABLE email ADD COLUMN open_count INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE email ADD COLUMN first_clicked_at TEXT;`,
+			`ALTER TABLE email ADD COLUMN last_clicked_at TEXT;`,
+			`ALTER TABLE email ADD COLUMN click_count INTEGER NOT NULL DEFAULT 0;`
+		];
+
+		for (const statement of columns) {
+			try {
+				await c.env.db.prepare(statement).run();
+			} catch (e) {
+				console.warn(`跳过字段：${e.message}`);
+			}
+		}
+
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS email_tracking_event (
+				event_id TEXT PRIMARY KEY NOT NULL,
+				email_id INTEGER NOT NULL,
+				resend_email_id TEXT NOT NULL,
+				event_type TEXT NOT NULL,
+				occurred_at TEXT NOT NULL,
+				create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)
+		`).run();
+		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_tracking_email_id ON email_tracking_event(email_id)`).run();
+		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_tracking_resend_email_id ON email_tracking_event(resend_email_id)`).run();
 	},
 
 	async v3_3DB(c) {

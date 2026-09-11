@@ -1,0 +1,84 @@
+name: Sync upstream safely
+
+on:
+  schedule:
+    - cron: "23 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cloud-mail-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch and merge upstream
+        id: merge
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git remote add upstream https://github.com/maillab/cloud-mail.git
+          git fetch upstream main
+          $null = git merge-base --is-ancestor upstream/main HEAD
+          if ($LASTEXITCODE -eq 0) {
+            "changed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+            exit 0
+          }
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git merge --no-edit upstream/main
+          "changed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+
+      - name: Set up pnpm
+        if: steps.merge.outputs.changed == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            mail-worker/pnpm-lock.yaml
+            mail-vue/pnpm-lock.yaml
+
+      - name: Install and build frontend
+        if: steps.merge.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm --dir mail-vue install --frozen-lockfile
+          pnpm --dir mail-vue build
+
+      - name: Validate Worker bundle
+        if: steps.merge.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm --dir mail-worker install --frozen-lockfile
+          Push-Location mail-worker
+          try {
+            pnpm exec vitest run --config vitest.unit.config.js
+            pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
+          } finally {
+            Pop-Location
+          }
+
+      - name: Push verified update
+        if: steps.merge.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git push origin HEAD:main
