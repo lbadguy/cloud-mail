@@ -36,6 +36,9 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git merge --no-edit upstream/main
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Upstream merge failed or requires conflict resolution.'
+          }
           "changed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
 
       - name: Set up pnpm
@@ -60,7 +63,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           pnpm --dir mail-vue install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency installation failed.' }
           pnpm --dir mail-vue build
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
 
       - name: Validate Worker bundle
         if: steps.merge.outputs.changed == 'true'
@@ -68,10 +73,13 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           pnpm --dir mail-worker install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Worker dependency installation failed.' }
           Push-Location mail-worker
           try {
             pnpm exec vitest run --config vitest.unit.config.js
+            if ($LASTEXITCODE -ne 0) { throw 'Worker unit tests failed.' }
             pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
+            if ($LASTEXITCODE -ne 0) { throw 'Worker dry-run validation failed.' }
           } finally {
             Pop-Location
           }
@@ -82,3 +90,4 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw 'Pushing the verified upstream update failed.' }

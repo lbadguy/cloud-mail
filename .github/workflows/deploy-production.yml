@@ -72,12 +72,17 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           pnpm --dir mail-vue install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency installation failed.' }
           pnpm --dir mail-vue build
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
           pnpm --dir mail-worker install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Worker dependency installation failed.' }
           Push-Location mail-worker
           try {
             pnpm exec vitest run --config vitest.unit.config.js
+            if ($LASTEXITCODE -ne 0) { throw 'Worker unit tests failed.' }
             pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
+            if ($LASTEXITCODE -ne 0) { throw 'Worker dry-run validation failed.' }
           } finally {
             Pop-Location
           }
@@ -90,6 +95,7 @@ jobs:
           Push-Location mail-worker
           try {
             $deployment = pnpm exec wrangler deployments status --config wrangler.production.jsonc --json | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Reading the current Worker deployment failed.' }
             $previous = $deployment.versions | Where-Object { $_.percentage -eq 100 } | Select-Object -First 1
             if ($previous.version_id) {
               "version=$($previous.version_id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
@@ -106,6 +112,7 @@ jobs:
           Push-Location mail-worker
           try {
             pnpm exec wrangler d1 export lc7c-cloud-mail-db --remote --config wrangler.production.jsonc --output ../backup/lc7c-cloud-mail-db.sql
+            if ($LASTEXITCODE -ne 0) { throw 'Production D1 backup failed.' }
           } finally {
             Pop-Location
           }
@@ -125,6 +132,7 @@ jobs:
           Push-Location mail-worker
           try {
             pnpm exec wrangler deploy --config wrangler.production.jsonc --keep-vars
+            if ($LASTEXITCODE -ne 0) { throw 'Worker deployment failed.' }
           } finally {
             Pop-Location
           }
@@ -158,6 +166,7 @@ jobs:
           Push-Location mail-worker
           try {
             pnpm exec wrangler rollback '${{ steps.previous.outputs.version }}' --config wrangler.production.jsonc --message 'Automatic rollback after failed health check' --yes
+            if ($LASTEXITCODE -ne 0) { throw 'Automatic Worker rollback failed.' }
           } finally {
             Pop-Location
           }
