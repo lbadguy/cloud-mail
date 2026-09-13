@@ -4,9 +4,17 @@ on:
   schedule:
     - cron: "23 18 * * *"
   workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply the verified upstream update to production
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+  pull-requests: write
+  actions: write
 
 concurrency:
   group: cloud-mail-upstream-sync
@@ -23,16 +31,34 @@ jobs:
 
       - name: Fetch and merge upstream
         id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPLY_UPDATE: ${{ inputs.apply || 'false' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           git remote add upstream https://github.com/maillab/cloud-mail.git
-          git fetch upstream main
+          git fetch upstream main --tags
+
+          $apply = $env:APPLY_UPDATE -eq 'true'
+          if (-not $apply) {
+            $openUpdates = gh pr list --state open --base main --json headRefName | ConvertFrom-Json
+            $hasOpenUpdate = @($openUpdates | Where-Object { $_.headRefName -like 'update/upstream-*' }).Count -gt 0
+            if ($hasOpenUpdate) {
+              "changed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+              "reason=An upstream update PR is already open." | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+              exit 0
+            }
+          }
+
           $null = git merge-base --is-ancestor upstream/main HEAD
           if ($LASTEXITCODE -eq 0) {
             "changed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
             exit 0
           }
+
+          $branch = "update/upstream-$($env:GITHUB_RUN_ID)"
+          git checkout -b $branch
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git merge --no-edit upstream/main
@@ -40,6 +66,8 @@ jobs:
             throw 'Upstream merge failed or requires conflict resolution.'
           }
           "changed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+          "branch=$branch" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+          "apply=$($apply.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
 
       - name: Set up pnpm
         if: steps.merge.outputs.changed == 'true'
@@ -84,10 +112,38 @@ jobs:
             Pop-Location
           }
 
-      - name: Push verified update
-        if: steps.merge.outputs.changed == 'true'
+      - name: Publish verified update branch
+        if: steps.merge.outputs.changed == 'true' && steps.merge.outputs.apply != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git push origin "HEAD:${{ steps.merge.outputs.branch }}"
+          if ($LASTEXITCODE -ne 0) { throw 'Pushing the verified upstream update failed.' }
+
+      - name: Open update pull request
+        if: steps.merge.outputs.changed == 'true' && steps.merge.outputs.apply != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $title = 'chore: review upstream cloud-mail update'
+          $body = @'
+          This pull request was created automatically after syncing `maillab/cloud-mail`.
+
+          It passed the frontend build, Worker unit tests, and Wrangler dry-run. Review the diff for compatibility with the Resend engagement tracking changes before merging into production `main`.
+          '@
+          gh pr create --base main --head "${{ steps.merge.outputs.branch }}" --title $title --body $body
+          if ($LASTEXITCODE -ne 0) { throw 'Creating the upstream update pull request failed.' }
+
+      - name: Apply verified update and start production deployment
+        if: steps.merge.outputs.changed == 'true' && steps.merge.outputs.apply == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           git push origin HEAD:main
-          if ($LASTEXITCODE -ne 0) { throw 'Pushing the verified upstream update failed.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Pushing the verified update to main failed.' }
+          gh workflow run deploy-production.yml --ref main
+          if ($LASTEXITCODE -ne 0) { throw 'Starting the production deployment workflow failed.' }

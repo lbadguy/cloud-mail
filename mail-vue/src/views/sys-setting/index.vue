@@ -447,7 +447,7 @@
               <div class="concerning-item">
                 <span>{{ $t('version') }} :</span>
                 <el-badge is-dot :hidden="!hasUpdate">
-                  <el-button @click="jump('https://github.com/maillab/cloud-mail/releases')">
+                  <el-button @click="openUpdateInfo">
                     {{ currentVersion }}
                     <template #icon>
                       <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
@@ -496,6 +496,17 @@
       </div>
 
       <!-- Dialogs remain the same -->
+      <el-dialog v-model="updateDialogShow" :title="$t('updateAvailable')" width="420">
+        <div class="update-dialog">
+          <div class="update-version">{{ currentVersion }} -&gt; {{ latestUpdate?.tagName }}</div>
+          <div v-if="latestUpdate?.publishedAt" class="update-date">{{ latestUpdate.publishedAt }}</div>
+          <pre v-if="latestUpdate?.body" class="update-notes">{{ latestUpdate.body }}</pre>
+          <div class="update-actions">
+            <el-button @click="ignoreUpdate">{{ $t('ignoreThisVersion') }}</el-button>
+            <el-button type="primary" :loading="updateLoading" @click="applyUpdate">{{ $t('updateNow') }}</el-button>
+          </div>
+        </div>
+      </el-dialog>
       <el-dialog v-model="editTitleShow" :title="$t('changeTitle')" width="340" @closed="editTitle = setting.title">
         <form @submit.prevent>
           <el-input type="text" :placeholder="$t('websiteTitle')" v-model="editTitle" @keyup.enter="saveTitle"/>
@@ -947,7 +958,7 @@ import loading from "@/components/loading/index.vue";
 import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
-import axios from "axios";
+import {getUpdateStatus, requestUpdateApply} from '@/request/update.js';
 
 defineOptions({
   name: 'sys-setting'
@@ -955,7 +966,10 @@ defineOptions({
 
 const currentVersion = 'v3.3.0'
 const hasUpdate = ref(false)
-let getUpdateErrorCount = 1;
+const latestUpdate = ref(null)
+const updateDialogShow = ref(false)
+const updateLoading = ref(false)
+let getUpdateErrorCount = 0;
 const {t, locale} = useI18n();
 const firstLoading = ref(true)
 const settingReady = ref(false)
@@ -1174,9 +1188,14 @@ const resendList = computed(() => {
 });
 
 function getUpdate() {
-  if (getUpdateErrorCount > 5 || !getUpdateErrorCount) return
-  axios.get('https://api.github.com/repos/maillab/cloud-mail/releases/latest').then(({data}) => {
-    hasUpdate.value = data.name !== currentVersion
+  if (getUpdateErrorCount > 5) return
+  getUpdateStatus().then((data) => {
+    latestUpdate.value = data
+    hasUpdate.value = isNewerVersion(data?.tagName, currentVersion)
+    const ignoredVersion = localStorage.getItem('cloud-mail:update-ignored')
+    if (hasUpdate.value && data?.tagName !== ignoredVersion) {
+      updateDialogShow.value = true
+    }
     getUpdateErrorCount = 0
   }).catch(e => {
     getUpdateErrorCount++
@@ -1185,6 +1204,43 @@ function getUpdate() {
     }, 2000)
     console.error('检查更新失败：', e)
   })
+}
+
+function isNewerVersion(candidate, current) {
+  const parse = (value) => String(value || '').replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0)
+  const next = parse(candidate)
+  const base = parse(current)
+  if (!candidate || next.every((part) => part === 0)) return false
+  for (let index = 0; index < Math.max(next.length, base.length); index++) {
+    if ((next[index] || 0) !== (base[index] || 0)) return (next[index] || 0) > (base[index] || 0)
+  }
+  return false
+}
+
+function openUpdateInfo() {
+  if (hasUpdate.value) {
+    updateDialogShow.value = true
+    return
+  }
+  jump(latestUpdate.value?.url || 'https://github.com/maillab/cloud-mail/releases')
+}
+
+function ignoreUpdate() {
+  if (latestUpdate.value?.tagName) {
+    localStorage.setItem('cloud-mail:update-ignored', latestUpdate.value.tagName)
+  }
+  updateDialogShow.value = false
+}
+
+async function applyUpdate() {
+  updateLoading.value = true
+  try {
+    await requestUpdateApply()
+    ElMessage({message: t('updateStarted'), type: 'success', plain: true})
+    updateDialogShow.value = false
+  } finally {
+    updateLoading.value = false
+  }
 }
 
 function saveAddVerifyCount() {

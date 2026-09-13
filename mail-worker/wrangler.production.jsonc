@@ -40,6 +40,9 @@
   "vars": {
     "domain": ["lc7c.com", "lc7c.me", "lc7c.dpdns.org", "swnb.dpdns.org"],
     "admin": "admin@lc7c.com",
+    "UPDATE_REPOSITORY": "lbadguy/cloud-mail",
+    "UPDATE_RELEASE_REPOSITORY": "maillab/cloud-mail",
+    "UPDATE_WORKFLOW": "sync-upstream.yml",
     "orm_log": false,
     "analysis_cache": false
   }
