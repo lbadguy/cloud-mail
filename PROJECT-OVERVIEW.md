@@ -89,7 +89,7 @@ Existing deployment secrets must remain configured:
 
 Add this repository secret for the administrator update button:
 
-- `GITHUB_UPDATE_TOKEN`: a fine-grained GitHub token scoped to `lbadguy/cloud-mail` with Actions workflow dispatch permission and Contents write permission. Keep it only in Worker secrets; never place it in frontend code or `wrangler` committed vars.
+- `GITHUB_UPDATE_TOKEN`: a fine-grained GitHub token scoped to `lbadguy/cloud-mail` with `Actions: Read and write` permission. Contents write is not required: the workflow's own `GITHUB_TOKEN` performs the verified branch push. Keep this token only in Worker secrets; never place it in frontend code or committed `wrangler` vars.
 
 The Worker variables are:
 
