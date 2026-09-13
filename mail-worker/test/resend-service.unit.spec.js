@@ -22,14 +22,46 @@ describe('Resend engagement webhooks', () => {
 		expect(resendService.parseWebhookSecrets('whsec_a, whsec_b')).toEqual(['whsec_a', 'whsec_b']);
 	});
 
-	it('rejects unsigned webhooks when no signing secret is configured', () => {
+	it('rejects unsigned webhooks when no signing secret is configured', async () => {
 		const context = {
 			env: {},
 			req: { header: () => undefined }
 		};
 
-		expect(() => resendService.verifyWebhook(context, '{"type":"email.opened"}'))
-			.toThrow('Resend webhook 签名密钥未配置');
+		await expect(resendService.verifyWebhook(context, '{"type":"email.opened"}'))
+			.rejects.toThrow('Resend webhook 签名密钥未配置');
+	});
+
+	it('rejects webhooks with missing signature headers', async () => {
+		const context = {
+			env: { resend_webhook_secrets: 'whsec_test' },
+			req: { header: () => undefined }
+		};
+
+		await expect(resendService.verifyWebhook(context, '{"type":"email.opened"}'))
+			.rejects.toThrow('Resend webhook 缺少签名请求头');
+	});
+
+	it('accepts a valid Svix signature', async () => {
+		const secretBytes = new TextEncoder().encode('test-signing-secret');
+		const secret = `whsec_${btoa(String.fromCharCode(...secretBytes))}`;
+		const payload = '{"type":"email.opened","data":{"email_id":"email_test"}}';
+		const id = 'msg_test';
+		const timestamp = Math.floor(Date.now() / 1000).toString();
+		const key = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+		const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${id}.${timestamp}.${payload}`));
+		const signature = btoa(String.fromCharCode(...new Uint8Array(digest)));
+		const context = {
+			env: { resend_webhook_secrets: secret },
+			req: {
+				header(name) {
+					return { 'svix-id': id, 'svix-timestamp': timestamp, 'svix-signature': `v1,${signature}` }[name];
+				}
+			}
+		};
+
+		await expect(resendService.verifyWebhook(context, payload))
+			.resolves.toEqual({ type: 'email.opened', data: { email_id: 'email_test' } });
 	});
 
 	it('records opened events without replacing delivery status', async () => {
