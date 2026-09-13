@@ -31,15 +31,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $configured = @(
-            $env:CLOUDFLARE_API_TOKEN,
-            $env:CLOUDFLARE_ACCOUNT_ID,
-            $env:JWT_SECRET
-          ) | Where-Object { [string]::IsNullOrWhiteSpace($_) }
-          $ready = $configured.Count -eq 0
+          $required = [ordered]@{
+            CLOUDFLARE_API_TOKEN = $env:CLOUDFLARE_API_TOKEN
+            CLOUDFLARE_ACCOUNT_ID = $env:CLOUDFLARE_ACCOUNT_ID
+            JWT_SECRET = $env:JWT_SECRET
+          }
+          $missing = @($required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace([string]$_.Value) } | ForEach-Object Key)
+          $ready = $missing.Count -eq 0
           "configured=$($ready.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
           if (-not $ready) {
-            Write-Warning 'Production deployment skipped until CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and JWT_SECRET are configured.'
+            throw "Production deployment is not configured. Missing GitHub Actions secrets: $($missing -join ', ')"
           }
 
   deploy:

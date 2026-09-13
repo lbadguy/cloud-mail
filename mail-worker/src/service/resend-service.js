@@ -48,12 +48,15 @@ const resendService = {
 		if (body.type === 'email.opened' || body.type === 'email.clicked') {
 			const occurredAt = body.created_at || new Date().toISOString();
 			const eventId = c.req.header('svix-id') || `${body.type}:${resendEmailId}:${occurredAt}`;
-			await emailService.updateEmailEngagement(c, {
+			const emailRow = await emailService.updateEmailEngagement(c, {
 				eventId,
 				eventType: body.type,
 				resendEmailId,
 				occurredAt
 			});
+			if (!emailRow) {
+				throw new BizError('未找到 Resend webhook 对应的邮件');
+			}
 			return;
 		}
 

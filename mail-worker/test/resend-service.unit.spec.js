@@ -51,6 +51,16 @@ describe('Resend engagement webhooks', () => {
 		expect(status).not.toHaveBeenCalled();
 	});
 
+	it('retries engagement events that arrive before the email is stored', async () => {
+		vi.spyOn(emailService, 'updateEmailEngagement').mockResolvedValue(null);
+
+		await expect(resendService.webhooks(createContext(), {
+			type: 'email.clicked',
+			created_at: '2026-09-11T12:00:00.000Z',
+			data: { email_id: 'email_not_stored_yet' }
+		})).rejects.toThrow('未找到 Resend webhook 对应的邮件');
+	});
+
 	it('keeps delivery status handling intact', async () => {
 		const status = vi.spyOn(emailService, 'updateEmailStatus').mockResolvedValue({ emailId: 1 });
 
