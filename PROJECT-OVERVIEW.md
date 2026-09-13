@@ -79,6 +79,8 @@ Administrator-triggered behavior:
 6. The workflow merges and validates upstream, pushes the verified result to `main`, and starts `deploy-production.yml`.
 7. A merge conflict or failed validation stops the update before production deployment.
 
+The sync workflow also updates the frontend's displayed `currentVersion` to the exact stable release tag before validation, so the version label does not remain stuck on an older release after a successful update.
+
 ## 5. Required GitHub Actions configuration
 
 Existing deployment secrets must remain configured:

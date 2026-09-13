@@ -27,7 +27,7 @@ app.get('/update/status', async (c) => {
 	assertAdmin(c);
 	const repo = c.env.UPDATE_RELEASE_REPOSITORY || DEFAULT_RELEASE_REPOSITORY;
 	const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-		headers: githubHeaders()
+			headers: githubHeaders(c.env.GITHUB_UPDATE_TOKEN)
 	});
 	if (!response.ok) {
 		throw new BizError(`GitHub release check failed: HTTP ${response.status}`, 502);

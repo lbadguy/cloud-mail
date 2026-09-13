@@ -71,6 +71,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw 'Upstream merge failed or requires conflict resolution.'
           }
+
+          if ($releaseTag -notmatch '^[A-Za-z0-9._-]+$') {
+            throw "Unsafe upstream release tag: $releaseTag"
+          }
+          $versionPath = 'mail-vue/src/views/sys-setting/index.vue'
+          $versionContent = Get-Content -LiteralPath $versionPath -Raw -Encoding UTF8
+          $updatedVersionContent = [regex]::Replace($versionContent, "const currentVersion = '[^']+'", "const currentVersion = '$releaseTag'")
+          if ($updatedVersionContent -eq $versionContent) {
+            throw 'Frontend currentVersion declaration was not found.'
+          }
+          $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+          [System.IO.File]::WriteAllText((Resolve-Path -LiteralPath $versionPath), $updatedVersionContent, $utf8NoBom)
+
           "changed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
           "branch=$branch" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
           "apply=$($apply.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
