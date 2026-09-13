@@ -19,8 +19,7 @@ const resendService = {
 	verifyWebhook(c, payload) {
 		const secrets = this.parseWebhookSecrets(c.env.resend_webhook_secrets);
 		if (secrets.length === 0) {
-			console.warn('未配置 Resend webhook 签名密钥，暂以兼容模式接收事件');
-			return JSON.parse(payload);
+			throw new BizError('Resend webhook 签名密钥未配置');
 		}
 
 		const headers = {

@@ -22,6 +22,16 @@ describe('Resend engagement webhooks', () => {
 		expect(resendService.parseWebhookSecrets('whsec_a, whsec_b')).toEqual(['whsec_a', 'whsec_b']);
 	});
 
+	it('rejects unsigned webhooks when no signing secret is configured', () => {
+		const context = {
+			env: {},
+			req: { header: () => undefined }
+		};
+
+		expect(() => resendService.verifyWebhook(context, '{"type":"email.opened"}'))
+			.toThrow('Resend webhook 签名密钥未配置');
+	});
+
 	it('records opened events without replacing delivery status', async () => {
 		const engagement = vi.spyOn(emailService, 'updateEmailEngagement').mockResolvedValue({ emailId: 1 });
 		const status = vi.spyOn(emailService, 'updateEmailStatus').mockResolvedValue({ emailId: 1 });
