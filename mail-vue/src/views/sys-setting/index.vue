@@ -2333,6 +2333,37 @@ form .el-button {
   height: 28px;
 }
 
+.update-version {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.update-date {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.update-notes {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 10px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
 
 :deep(.el-button--small) {
   margin-top: 2px !important;

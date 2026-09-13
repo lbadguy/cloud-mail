@@ -14,7 +14,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 concurrency:
   group: cloud-mail-upstream-sync
@@ -38,7 +37,14 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           git remote add upstream https://github.com/maillab/cloud-mail.git
-          git fetch upstream main --tags
+          $release = gh api repos/maillab/cloud-mail/releases/latest | ConvertFrom-Json
+          $releaseTag = $release.tag_name
+          if ([string]::IsNullOrWhiteSpace($releaseTag)) {
+            throw 'The upstream latest stable release has no tag.'
+          }
+          git fetch upstream "tag:$releaseTag" --no-tags
+          $target = git rev-parse "refs/tags/$releaseTag^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve upstream release tag $releaseTag." }
 
           $apply = $env:APPLY_UPDATE -eq 'true'
           if (-not $apply) {
@@ -51,7 +57,7 @@ jobs:
             }
           }
 
-          $null = git merge-base --is-ancestor upstream/main HEAD
+          $null = git merge-base --is-ancestor $target HEAD
           if ($LASTEXITCODE -eq 0) {
             "changed=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
             exit 0
@@ -61,13 +67,14 @@ jobs:
           git checkout -b $branch
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git merge --no-edit upstream/main
+          git merge --no-edit $target
           if ($LASTEXITCODE -ne 0) {
             throw 'Upstream merge failed or requires conflict resolution.'
           }
           "changed=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
           "branch=$branch" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
           "apply=$($apply.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
+          "release=$releaseTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
 
       - name: Set up pnpm
         if: steps.merge.outputs.changed == 'true'
@@ -127,7 +134,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $title = 'chore: review upstream cloud-mail update'
+          $title = "chore: review upstream cloud-mail ${{ steps.merge.outputs.release }} update"
           $body = @'
           This pull request was created automatically after syncing `maillab/cloud-mail`.
 
@@ -145,5 +152,3 @@ jobs:
           $ErrorActionPreference = 'Stop'
           git push origin HEAD:main
           if ($LASTEXITCODE -ne 0) { throw 'Pushing the verified update to main failed.' }
-          gh workflow run deploy-production.yml --ref main
-          if ($LASTEXITCODE -ne 0) { throw 'Starting the production deployment workflow failed.' }
