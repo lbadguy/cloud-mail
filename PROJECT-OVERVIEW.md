@@ -57,9 +57,9 @@ Important behavior:
 
 ## 4. Upstream update workflow
 
-The scheduled workflow `.github/workflows/sync-upstream.yml` runs daily and can also be started manually.
+The workflow `.github/workflows/sync-upstream.yml` is disabled by default and can only be started manually.
 
-Normal scheduled behavior:
+When started manually for a check:
 
 1. Fetch `upstream/main` and tags.
 2. Create an `update/upstream-*` branch.

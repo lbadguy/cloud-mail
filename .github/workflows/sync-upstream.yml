@@ -1,8 +1,6 @@
 name: Sync upstream safely
 
 on:
-  schedule:
-    - cron: "23 18 * * *"
   workflow_dispatch:
     inputs:
       apply:
@@ -42,8 +40,8 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($releaseTag)) {
             throw 'The upstream latest stable release has no tag.'
           }
-          git fetch upstream "tag:$releaseTag" --no-tags
-          $target = git rev-parse "refs/tags/$releaseTag^{commit}"
+          git fetch upstream "refs/tags/$releaseTag" --no-tags
+          $target = git rev-parse 'FETCH_HEAD^{commit}'
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve upstream release tag $releaseTag." }
 
           $apply = $env:APPLY_UPDATE -eq 'true'

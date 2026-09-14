@@ -454,6 +454,10 @@
                     </template>
                   </el-button>
                 </el-badge>
+                <el-button class="check-update-button" :loading="updateChecking" @click="checkForUpdates">
+                  <Icon icon="mdi:refresh" width="18" height="18"/>
+                  {{ $t('checkUpdate') }}
+                </el-button>
               </div>
               <div class="concerning-item">
                 <span>{{ $t('community') }} : </span>
@@ -969,7 +973,7 @@ const hasUpdate = ref(false)
 const latestUpdate = ref(null)
 const updateDialogShow = ref(false)
 const updateLoading = ref(false)
-let getUpdateErrorCount = 0;
+const updateChecking = ref(false)
 const {t, locale} = useI18n();
 const firstLoading = ref(true)
 const settingReady = ref(false)
@@ -1114,7 +1118,6 @@ const tgMsgTextOption = [{label: t('show'), value: 'show'}, {label: t('hide'), v
 const tgMsgLabelWidth = computed(() => locale.value === 'en' ? '120px' : '100px');
 
 getSettings()
-getUpdate()
 
 function getSettings() {
   settingReady.value = false
@@ -1187,22 +1190,27 @@ const resendList = computed(() => {
   return list;
 });
 
-function getUpdate() {
-  if (getUpdateErrorCount > 5) return
+function checkForUpdates() {
+  if (updateChecking.value) return
+  updateChecking.value = true
   getUpdateStatus().then((data) => {
     latestUpdate.value = data
-    hasUpdate.value = isNewerVersion(data?.tagName, currentVersion)
+    const newerVersion = isNewerVersion(data?.tagName, currentVersion)
     const ignoredVersion = localStorage.getItem('cloud-mail:update-ignored')
-    if (hasUpdate.value && data?.tagName !== ignoredVersion) {
+    hasUpdate.value = newerVersion && data?.tagName !== ignoredVersion
+    if (hasUpdate.value) {
       updateDialogShow.value = true
+      ElMessage({message: t('updateAvailable'), type: 'warning', plain: true})
+    } else if (newerVersion && data?.tagName === ignoredVersion) {
+      ElMessage({message: t('updateIgnored'), type: 'info', plain: true})
+    } else {
+      ElMessage({message: t('alreadyLatest'), type: 'success', plain: true})
     }
-    getUpdateErrorCount = 0
-  }).catch(e => {
-    getUpdateErrorCount++
-    setTimeout(() => {
-      getUpdate()
-    }, 2000)
-    console.error('检查更新失败：', e)
+  }).catch((error) => {
+    console.error('检查更新失败：', error)
+    ElMessage({message: t('updateCheckFailed'), type: 'error', plain: true})
+  }).finally(() => {
+    updateChecking.value = false
   })
 }
 
@@ -1229,6 +1237,7 @@ function ignoreUpdate() {
   if (latestUpdate.value?.tagName) {
     localStorage.setItem('cloud-mail:update-ignored', latestUpdate.value.tagName)
   }
+  hasUpdate.value = false
   updateDialogShow.value = false
 }
 
