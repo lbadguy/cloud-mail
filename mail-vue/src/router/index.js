@@ -51,6 +51,16 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/trash',
+                name: 'trash',
+                component: () => import('@/views/trash/index.vue'),
+                meta: {
+                    title: 'trash',
+                    name: 'trash',
+                    menu: true
+                }
+            },
         ]
 
     },

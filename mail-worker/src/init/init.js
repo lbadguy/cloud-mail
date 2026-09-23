@@ -33,8 +33,38 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
+		await this.v3_5DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_5DB(c) {
+		try {
+			const col = await c.env.db.prepare(`SELECT * FROM pragma_table_info('email') WHERE name = 'deleted_at' LIMIT 1`).first();
+			if (!col) {
+				await c.env.db.prepare(`ALTER TABLE email ADD COLUMN deleted_at TEXT;`).run();
+			}
+		} catch (e) {
+			console.warn(`跳过添加 deleted_at 字段：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_trash ON email(user_id, is_del, deleted_at, email_id)`).run();
+		} catch (e) {
+			console.warn(`跳过创建 idx_email_trash 索引：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_del_purge ON email(is_del, deleted_at)`).run();
+		} catch (e) {
+			console.warn(`跳过创建 idx_email_del_purge 索引：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`UPDATE email SET deleted_at = CURRENT_TIMESTAMP WHERE is_del = 1 AND deleted_at IS NULL`).run();
+		} catch (e) {
+			console.warn(`跳过回填 deleted_at：${e.message}`);
+		}
 	},
 
 	async v3_4DB(c) {
@@ -645,7 +675,8 @@ const dbInit = {
 			content TEXT,
 			text TEXT,
 			create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-			is_del INTEGER DEFAULT 0 NOT NULL
+			is_del INTEGER DEFAULT 0 NOT NULL,
+			deleted_at TEXT
 		  )
 		`).run();
 

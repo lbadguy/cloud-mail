@@ -39,6 +39,7 @@ export const emailBriefColumns = {
 	unread: email.unread,
 	createTime: email.createTime,
 	isDel: email.isDel,
+	deletedAt: email.deletedAt,
 	content: sql`CASE WHEN trim(coalesce(${email.text}, '')) != '' THEN NULL ELSE ${sqlStripWhitespace(email.content)} END`.as('content'),
 	text: sql`substr(coalesce(${email.text}, ''), 1, ${EMAIL_LIST_TEXT_LEN})`.as('text'),
 };

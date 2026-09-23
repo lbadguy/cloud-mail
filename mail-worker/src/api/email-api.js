@@ -15,7 +15,28 @@ app.get('/email/latest', async (c) => {
 });
 
 app.delete('/email/delete', async (c) => {
-	await emailService.delete(c, c.req.query(), userContext.getUserId(c));
+	const body = await c.req.json().catch(() => ({}));
+	const params = { ...c.req.query(), ...body };
+	await emailService.delete(c, params, userContext.getUserId(c));
+	return c.json(result.ok());
+});
+
+app.get('/email/trash', async (c) => {
+	const data = await emailService.trashList(c, c.req.query(), userContext.getUserId(c));
+	return c.json(result.ok(data));
+});
+
+app.put('/email/restore', async (c) => {
+	const body = await c.req.json().catch(() => ({}));
+	const params = { ...c.req.query(), ...body };
+	await emailService.restore(c, params, userContext.getUserId(c));
+	return c.json(result.ok());
+});
+
+app.delete('/email/permanent-delete', async (c) => {
+	const body = await c.req.json().catch(() => ({}));
+	const params = { ...c.req.query(), ...body };
+	await emailService.permanentDelete(c, params, userContext.getUserId(c));
 	return c.json(result.ok());
 });
 

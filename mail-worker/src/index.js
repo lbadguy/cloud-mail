@@ -33,6 +33,7 @@ export default {
 		await verifyRecordService.clearRecord({ env })
 		await userService.resetDaySendCount({ env })
 		await emailService.completeReceiveAll({ env })
+		await emailService.purgeTrash({ env })
 		await emailService.autoClean({ env })
 		await analysisService.refreshEchartsCache({ env })
 		await oauthService.clearNoBindOathUser({ env })
