@@ -106,6 +106,7 @@ button, input, select, textarea {
 }
 
 :root {
+    color-scheme: light;
     --el-color-primary: #1890ff;
     --el-color-primary-dark-2: #1064c0;
     --el-color-primary-light-3: #4dabff;
@@ -146,6 +147,7 @@ button, input, select, textarea {
 }
 
 .dark {
+    color-scheme: dark;
     --extra-light-fill: #191919;
     --settings-page-background: var(--extra-light-fill);
     --light-ill: #262727;

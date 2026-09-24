@@ -10,12 +10,27 @@
       </div>
     </div>
     <div class="toolbar">
-      <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
-        <Icon icon="mingcute:sun-fill"/>
-      </div>
-      <div v-else class="dark-icon icon-item" @click="openDark($event)">
-        <Icon icon="solar:moon-linear"/>
-      </div>
+      <el-dropdown class="theme-dropdown" trigger="click" @command="changeTheme">
+        <button type="button" class="theme-toggle icon-item" :aria-label="$t('themeMode')" :title="$t('themeMode')">
+          <Icon :icon="themeIcon"/>
+        </button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="light" :class="{ 'is-active': uiStore.themeMode === 'light' }">
+              <Icon icon="mingcute:sun-fill" width="18" height="18"/>
+              {{ $t('themeLight') }}
+            </el-dropdown-item>
+            <el-dropdown-item command="dark" :class="{ 'is-active': uiStore.themeMode === 'dark' }">
+              <Icon icon="solar:moon-linear" width="18" height="18"/>
+              {{ $t('themeDark') }}
+            </el-dropdown-item>
+            <el-dropdown-item command="system" :class="{ 'is-active': uiStore.themeMode === 'system' }">
+              <Icon icon="eos-icons:system-ok-outlined" width="18" height="18"/>
+              {{ $t('themeSystem') }}
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
       <div class="notice icon-item" @click="openNotice">
         <Icon icon="streamline-plump:announcement-megaphone"/>
       </div>
@@ -94,6 +109,11 @@ const uiStore = useUiStore();
 const logoutLoading = ref(false)
 const userInfoShow = ref(false)
 const userinfoRef = ref({})
+
+const themeIcon = computed(() => {
+  if (uiStore.themeMode === 'system') return 'eos-icons:system-ok-outlined'
+  return uiStore.dark ? 'mingcute:sun-fill' : 'solar:moon-linear'
+})
 
 const accountCount = computed(() => {
   return userStore.user.role.accountCount
@@ -191,45 +211,8 @@ function openNotice() {
   uiStore.showNotice()
 }
 
-function openDark(e) {
-
-  const nextIsDark = !uiStore.dark
-  const root = document.documentElement
-
-  if (!document.startViewTransition) {
-    switchDark(nextIsDark, root);
-    return
-  }
-
-  const x = e.clientX
-  const y = e.clientY
-
-  const maxX = Math.max(x, window.innerWidth - x)
-  const maxY = Math.max(y, window.innerHeight - y)
-  const endRadius = Math.hypot(maxX, maxY)
-
-  // 标记切换目标，供 CSS 选择器使用
-  root.setAttribute('data-theme-to', nextIsDark ? 'dark' : 'light')
-  root.style.setProperty('--vt-x', `${x}px`)
-  root.style.setProperty('--vt-y', `${y}px`)
-  root.style.setProperty('--vt-end-radius', `${endRadius + 10}px`)
-
-  const transition = document.startViewTransition(() => {
-    switchDark(nextIsDark, root);
-  })
-
-  transition.finished.finally(() => {
-    // 清理标记
-    root.removeAttribute('data-theme-to')
-  })
-}
-
-function switchDark(nextIsDark, root) {
-  root.setAttribute('class', nextIsDark ? 'dark' : '')
-  const metaTag = document.getElementById('theme-color-meta');
-  const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-  metaTag.setAttribute('content', nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1'));
-  uiStore.dark = nextIsDark
+function changeTheme(mode) {
+  uiStore.setThemeMode(mode)
 }
 
 function openSend() {
@@ -433,6 +416,15 @@ function formatName(email) {
     background: var(--base-fill);
   }
 
+  .theme-dropdown {
+    display: flex;
+    align-items: center;
+  }
+
+  .theme-toggle {
+    font-size: 20px;
+  }
+
   .notice {
     font-size: 22px;
     margin-right: 4px;
@@ -471,6 +463,16 @@ function formatName(email) {
     }
   }
 
+}
+
+:deep(.el-dropdown-menu__item) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:deep(.el-dropdown-menu__item.is-active) {
+  color: var(--el-color-primary);
 }
 
 .el-tooltip__trigger:first-child:focus-visible {
