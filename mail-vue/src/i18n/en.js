@@ -5,6 +5,7 @@ const en = {
     starred: 'Starred',
     trash: 'Trash',
     trashRetention: 'Emails are permanently deleted after 30 days',
+    trashDaysRemaining: '{days} days left',
     permanentDelete: 'Delete permanently',
     permanentDeleteConfirm: 'This cannot be undone. Permanently delete the selected email(s)?',
     restoreSuccessMsg: 'Email restored',

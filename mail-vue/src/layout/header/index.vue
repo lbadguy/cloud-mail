@@ -111,8 +111,7 @@ const userInfoShow = ref(false)
 const userinfoRef = ref({})
 
 const themeIcon = computed(() => {
-  if (uiStore.themeMode === 'system') return 'eos-icons:system-ok-outlined'
-  return uiStore.dark ? 'mingcute:sun-fill' : 'solar:moon-linear'
+  return uiStore.dark ? 'solar:moon-linear' : 'mingcute:sun-fill'
 })
 
 const accountCount = computed(() => {

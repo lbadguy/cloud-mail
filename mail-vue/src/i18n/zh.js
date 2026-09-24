@@ -5,6 +5,7 @@ const zh = {
     starred: '星标邮件',
     trash: '回收站',
     trashRetention: '邮件将在 30 天后永久删除',
+    trashDaysRemaining: '剩{days}天',
     permanentDelete: '永久删除',
     permanentDeleteConfirm: '永久删除后无法恢复，确认继续吗？',
     restoreSuccessMsg: '邮件已恢复',
