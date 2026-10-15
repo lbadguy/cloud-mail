@@ -444,20 +444,24 @@
           <div class="settings-card about">
             <div class="card-title">{{ $t('about') }}</div>
             <div class="card-content">
-              <div class="concerning-item">
+              <div class="concerning-item about-version-row">
                 <span>{{ $t('version') }} :</span>
-                <el-badge is-dot :hidden="!hasUpdate">
-                  <el-button @click="openUpdateInfo">
-                    {{ currentVersion }}
+                <div class="about-actions">
+                  <el-badge is-dot :hidden="!hasUpdate">
+                    <el-button class="version-button" @click="openUpdateInfo">
+                      {{ currentVersion }}
+                      <template #icon>
+                        <Icon icon="qlementine-icons:version-control-16" width="18" height="18" color="#1890FF"/>
+                      </template>
+                    </el-button>
+                  </el-badge>
+                  <el-button class="check-update-button" :loading="updateChecking" @click="checkForUpdates">
+                    {{ $t('checkUpdate') }}
                     <template #icon>
-                      <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
+                      <Icon icon="mdi:refresh" width="18" height="18"/>
                     </template>
                   </el-button>
-                </el-badge>
-                <el-button class="check-update-button" :loading="updateChecking" @click="checkForUpdates">
-                  <Icon icon="mdi:refresh" width="18" height="18"/>
-                  {{ $t('checkUpdate') }}
-                </el-button>
+                </div>
               </div>
               <div class="concerning-item">
                 <span>{{ $t('community') }} : </span>
@@ -2282,13 +2286,35 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .concerning-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
   align-items: center;
+  column-gap: 20px;
+  row-gap: 10px;
 
+  .about-actions,
   .community {
     display: flex;
-    row-gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
+
+    :deep(.el-button) {
+      min-height: 32px;
+      margin: 0;
+      padding: 0 12px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    :deep(.el-button .el-icon) {
+      margin-right: 0;
+    }
+  }
+
+  :deep(.el-badge) {
+    display: inline-flex;
   }
 
   :deep(.el-button) {
@@ -2302,8 +2328,18 @@ function editSetting(settingForm, refreshStatus = true) {
 
   > span:first-child {
     font-weight: normal;
-    padding-right: 20px;
+    padding-right: 0;
     white-space: nowrap;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 72px minmax(0, 1fr);
+    column-gap: 8px;
+
+    .about-actions,
+    .community {
+      gap: 8px;
+    }
   }
 }
 

@@ -63,9 +63,16 @@
                     <el-tooltip effect="dark" :content="item.statusIcon.content">
                       <Icon :icon="item.statusIcon.icon" :style="`color: ${item.statusIcon.color}`" width="20" height="20"/>
                     </el-tooltip>
-                    <el-tooltip v-if="item.openCount" effect="dark" :content="item.openedContent">
-                      <Icon icon="material-symbols:done-all" color="#409EFF" width="20" height="20"/>
-                    </el-tooltip>
+                    <OpenEventsPopover
+                        v-if="item.openCount"
+                        :email-id="item.emailId"
+                        :open-count="item.openCount"
+                        :admin="props.type === 'all-email'"
+                    >
+                      <el-tooltip effect="dark" :content="item.openedContent">
+                        <Icon icon="material-symbols:done-all" color="#409EFF" width="20" height="20"/>
+                      </el-tooltip>
+                    </OpenEventsPopover>
                     <el-tooltip v-if="item.clickCount" effect="dark" :content="item.clickedContent">
                       <Icon icon="mdi:cursor-default-click" color="#9B59B6" width="20" height="20"/>
                     </el-tooltip>
@@ -263,6 +270,7 @@ import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
+import OpenEventsPopover from '@/components/open-events-popover/index.vue'
 
 const props = defineProps({
   getEmailList: Function,

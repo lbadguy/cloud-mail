@@ -13,7 +13,6 @@
                  :time-sort="params.timeSort"
                  :item-height="65"
                  @jump="jumpContent"
-                 @refresh-before="refreshBefore"
                  @right-search="rightSearch"
                  :type="'all-email'"
 
@@ -233,17 +232,6 @@ function rightSearch(type, value) {
   params.searchType = type;
   searchValue.value = value;
   search();
-}
-
-function refreshBefore() {
-  searchValue.value = null
-  params.timeSort = 0
-  params.type = 'receive'
-  params.userEmail = null
-  params.accountEmail = null
-  params.name = null
-  params.subject = null
-  params.searchType = 'name'
 }
 
 function search() {

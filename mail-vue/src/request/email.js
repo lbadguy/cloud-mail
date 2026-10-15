@@ -24,6 +24,10 @@ export function emailLatest(emailId, accountId, allReceive) {
     return http.get('/email/latest', {params: {emailId, accountId, allReceive}, noMsg: true, timeout: 35 * 1000})
 }
 
+export function emailOpenEvents(emailId) {
+    return http.get('/email/openEvents', {params: {emailId}})
+}
+
 export function emailRead(emailIds) {
     return http.put('/email/read', {emailIds})
 }

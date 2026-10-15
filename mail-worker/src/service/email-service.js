@@ -998,6 +998,32 @@ const emailService = {
 		return emailRow;
 	},
 
+	async openEvents(c, params, userId) {
+		const emailId = Number(params?.emailId);
+		if (!Number.isInteger(emailId) || emailId <= 0) {
+			return [];
+		}
+
+		const ownerFilter = userId === undefined ? '' : 'AND e.user_id = ?';
+		const statement = c.env.db.prepare(`
+			SELECT
+				te.event_id AS eventId,
+				te.occurred_at AS occurredAt
+			FROM email_tracking_event te
+			INNER JOIN email e ON e.email_id = te.email_id
+			WHERE te.email_id = ?
+				AND te.event_type = 'email.opened'
+				${ownerFilter}
+			ORDER BY te.occurred_at DESC, te.event_id DESC
+		`);
+		const query = userId === undefined
+			? statement.bind(emailId)
+			: statement.bind(emailId, userId);
+
+		const result = await query.all();
+		return result.results || [];
+	},
+
 	async selectUserEmailCountList(c, userIds, type, del = isDel.NORMAL) {
 		const result = await orm(c)
 			.select({

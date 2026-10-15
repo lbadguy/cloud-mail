@@ -14,6 +14,11 @@ app.get('/email/latest', async (c) => {
 	return c.json(result.ok(list));
 });
 
+app.get('/email/openEvents', async (c) => {
+	const list = await emailService.openEvents(c, c.req.query(), userContext.getUserId(c));
+	return c.json(result.ok(list));
+});
+
 app.delete('/email/delete', async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const params = { ...c.req.query(), ...body };

@@ -30,9 +30,16 @@
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
               <div class="tracking-status" v-if="email.type === 1 && (email.openCount || email.clickCount)">
-                <el-tag v-if="email.openCount" type="primary" effect="plain">
-                  {{ $t('possiblyOpened') }} · {{ email.openCount }} · {{ formatDetailDate(email.lastOpenedAt) }}
-                </el-tag>
+                <OpenEventsPopover
+                    v-if="email.openCount"
+                    :email-id="email.emailId"
+                    :open-count="email.openCount"
+                    :admin="emailStore.contentData.delType === 'physics'"
+                >
+                  <el-tag type="primary" effect="plain" class="tracking-tag">
+                    {{ $t('possiblyOpened') }} · {{ email.openCount }} · {{ formatDetailDate(email.lastOpenedAt) }}
+                  </el-tag>
+                </OpenEventsPopover>
                 <el-tag v-if="email.clickCount" type="success" effect="plain">
                   {{ $t('linkClicked') }} · {{ email.clickCount }} · {{ formatDetailDate(email.lastClickedAt) }}
                 </el-tag>
@@ -100,6 +107,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import OpenEventsPopover from '@/components/open-events-popover/index.vue'
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -285,6 +293,10 @@ const handleDelete = () => {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+}
+
+.tracking-tag {
+  cursor: pointer;
 }
 
 .box {
