@@ -2289,6 +2289,7 @@ function editSetting(settingForm, refreshStatus = true) {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
   align-items: center;
+  justify-items: start;
   column-gap: 20px;
   row-gap: 10px;
 
