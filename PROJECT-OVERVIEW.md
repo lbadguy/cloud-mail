@@ -50,12 +50,22 @@ Added table:
 
 Important behavior:
 
-- The UI says “possibly opened”; an opened event is not proof that a person read the message.
+- The UI says “opened”. Clicking the indicator shows every recorded open time and explains that previews, security scanners, and privacy proxies can also trigger the event.
 - Tracking is displayed for sent mail only.
 - Webhook signatures are verified with Cloudflare Web Crypto HMAC-SHA256.
 - Early events are retried when the email row has not reached D1 yet.
 
-## 4. Upstream update workflow
+## 4. Administrator no-recipient claim
+
+Inbound messages for addresses that do not yet exist remain isolated with `user_id=0`, `account_id=0`, and status `NOONE`.
+
+- Creating an address does not automatically expose historical no-recipient mail.
+- Only the administrator can use the claim action in `All Mail > No Recipient`.
+- A message can only be claimed by an existing, active account whose address exactly matches the original recipient, case-insensitively. There is no fuzzy or `+tag` fallback.
+- Claiming restores the message to the inbox and updates both the email and attachment ownership in one D1 batch transaction.
+- Missing accounts, already-claimed messages, and other non-matches are skipped and reported to the administrator.
+
+## 5. Upstream update workflow
 
 The workflow `.github/workflows/sync-upstream.yml` is disabled by default and can only be started manually.
 
@@ -81,7 +91,7 @@ Administrator-triggered behavior:
 
 The sync workflow also updates the frontend's displayed `currentVersion` to the exact stable release tag before validation, so the version label does not remain stuck on an older release after a successful update.
 
-## 5. Required GitHub Actions configuration
+## 6. Required GitHub Actions configuration
 
 Existing deployment secrets must remain configured:
 
@@ -99,7 +109,7 @@ The Worker variables are:
 - `UPDATE_RELEASE_REPOSITORY=maillab/cloud-mail`
 - `UPDATE_WORKFLOW=sync-upstream.yml`
 
-## 6. Conflict and compatibility checklist
+## 7. Conflict and compatibility checklist
 
 For every upstream update, inspect changes to:
 
@@ -119,7 +129,7 @@ Then verify:
 - Resend signature verification still rejects invalid requests.
 - Frontend build, Worker unit tests, Wrangler dry-run, and a real sent-email test pass.
 
-## 7. Current caveats
+## 8. Current caveats
 
 - GitHub Releases and `upstream/main` are different concepts. The UI checks the latest stable Release; the sync workflow checks upstream commits.
 - A stable Release is not a guarantee of zero bugs or compatibility with this Cloudflare account.

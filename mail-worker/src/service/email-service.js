@@ -1,7 +1,7 @@
 import orm from '../entity/orm';
 import email from '../entity/email';
 import { emailListColumns, emailBriefColumns, EMAIL_LIST_TEXT_LEN } from '../lib/email-list-columns';
-import { attConst, emailConst, isDel, settingConst } from '../const/entity-const';
+import { attConst, emailConst, isDel, settingConst, userConst } from '../const/entity-const';
 import { and, desc, eq, gt, inArray, notInArray, lt, count, asc, sql, ne, or, like, lte, gte } from 'drizzle-orm';
 import { star } from '../entity/star';
 import settingService from './setting-service';
@@ -232,6 +232,110 @@ const emailService = {
 				.filter(id => Number.isInteger(id) && id > 0);
 		}
 		return [];
+	},
+
+	async claimNoRecipient(c, params, currentUser) {
+		if (!currentUser || currentUser.email !== c.env.admin) {
+			throw new BizError(t('unauthorized'), 403);
+		}
+
+		const emailIds = [...new Set(this.parseEmailIds(params?.emailIds))];
+		if (!emailIds.length) {
+			return { claimedCount: 0, skippedCount: 0 };
+		}
+		if (emailIds.length > 50) {
+			throw new BizError(t('claimNoRecipientLimit'), 400);
+		}
+
+		const placeholders = emailIds.map(() => '?').join(', ');
+		const { results = [] } = await c.env.db.prepare(`
+			SELECT e.email_id AS emailId, a.account_id AS accountId, a.user_id AS userId
+			FROM email e
+			INNER JOIN account a ON a.email COLLATE NOCASE = e.to_email
+			INNER JOIN user u ON u.user_id = a.user_id
+			WHERE e.email_id IN (${placeholders})
+			  AND e.status = ?
+			  AND e.user_id = 0
+			  AND e.account_id = 0
+			  AND a.is_del = ?
+			  AND u.is_del = ?
+			  AND u.status = ?
+		`).bind(
+			...emailIds,
+			emailConst.status.NOONE,
+			isDel.NORMAL,
+			isDel.NORMAL,
+			userConst.status.NORMAL
+		).all();
+
+		if (!results.length) {
+			return { claimedCount: 0, skippedCount: emailIds.length };
+		}
+
+		const statements = [];
+		for (const row of results) {
+			statements.push(
+				c.env.db.prepare(`
+					UPDATE attachments
+					SET user_id = ?, account_id = ?
+					WHERE email_id = ? AND user_id = 0 AND account_id = 0
+					  AND EXISTS (
+						SELECT 1
+						FROM email e
+						INNER JOIN account a ON a.account_id = ? AND a.email COLLATE NOCASE = e.to_email
+						INNER JOIN user u ON u.user_id = a.user_id
+						WHERE e.email_id = ? AND e.status = ? AND e.user_id = 0 AND e.account_id = 0
+						  AND a.is_del = ? AND u.is_del = ? AND u.status = ?
+					  )
+				`).bind(
+					row.userId,
+					row.accountId,
+					row.emailId,
+					row.accountId,
+					row.emailId,
+					emailConst.status.NOONE,
+					isDel.NORMAL,
+					isDel.NORMAL,
+					userConst.status.NORMAL
+				),
+				c.env.db.prepare(`
+					UPDATE email
+					SET user_id = ?, account_id = ?, status = ?, type = ?, is_del = ?, deleted_at = NULL
+					WHERE email_id = ? AND status = ? AND user_id = 0 AND account_id = 0
+					  AND EXISTS (
+						SELECT 1
+						FROM account a
+						INNER JOIN user u ON u.user_id = a.user_id
+						WHERE a.account_id = ? AND a.user_id = ? AND a.email COLLATE NOCASE = email.to_email
+						  AND a.is_del = ? AND u.is_del = ? AND u.status = ?
+					  )
+				`).bind(
+					row.userId,
+					row.accountId,
+					emailConst.status.RECEIVE,
+					emailConst.type.RECEIVE,
+					isDel.NORMAL,
+					row.emailId,
+					emailConst.status.NOONE,
+					row.accountId,
+					row.userId,
+					isDel.NORMAL,
+					isDel.NORMAL,
+					userConst.status.NORMAL
+				)
+			);
+		}
+
+		const batchResults = await c.env.db.batch(statements);
+		let claimedCount = 0;
+		for (let index = 1; index < batchResults.length; index += 2) {
+			claimedCount += Number(batchResults[index]?.meta?.changes || 0);
+		}
+
+		return {
+			claimedCount,
+			skippedCount: emailIds.length - claimedCount
+		};
 	},
 
 	async delete(c, params, userId) {

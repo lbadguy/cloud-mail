@@ -19,3 +19,7 @@ export function allEmailLatest(emailId) {
 export function allEmailOpenEvents(emailId) {
     return http.get('/allEmail/openEvents', {params: {emailId}})
 }
+
+export function allEmailClaimNoRecipient(emailIds) {
+    return http.put('/allEmail/claimNoRecipient', {emailIds})
+}

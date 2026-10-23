@@ -1,6 +1,7 @@
 import app from '../hono/hono';
 import emailService from '../service/email-service';
 import result from '../model/result';
+import userContext from '../security/user-context';
 
 app.get('/allEmail/list', async (c) => {
 	const data = await emailService.allList(c, c.req.query());
@@ -25,4 +26,9 @@ app.get('/allEmail/latest', async (c) => {
 app.get('/allEmail/openEvents', async (c) => {
 	const list = await emailService.openEvents(c, c.req.query());
 	return c.json(result.ok(list));
+})
+
+app.put('/allEmail/claimNoRecipient', async (c) => {
+	const data = await emailService.claimNoRecipient(c, await c.req.json(), userContext.getUser(c));
+	return c.json(result.ok(data));
 })

@@ -20,6 +20,10 @@
         <Icon v-perm="'email:delete'" class="icon delete" icon="fluent:mail-read-20-regular" width="21" height="21"
               v-if="getSelectedMailsIds().length > 0 && showUnread"
               @click="handleRead"/>
+        <Icon v-perm="'all-email:claim'" class="icon" icon="material-symbols:move-to-inbox-outline" width="21" height="21"
+              v-if="showClaim && getSelectedMailsIds().length > 0"
+              :title="t('claimNoRecipient')"
+              @click="handleClaim"/>
       </div>
 
       <div class="header-right">
@@ -324,10 +328,14 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  showClaim: {
+    type: Boolean,
+    default: false
+  },
   emailRestore: Function
 })
 
-const emit = defineEmits(['jump', 'refresh-before', 'delete-draft', 'right-search'])
+const emit = defineEmits(['jump', 'refresh-before', 'delete-draft', 'right-search', 'claim'])
 const {t} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
@@ -721,6 +729,10 @@ function handleDelete() {
       emailStore.deleteIds = emailIds;
     })
   })
+}
+
+function handleClaim() {
+  emit('claim', getSelectedMailsIds())
 }
 
 function handleRestore() {

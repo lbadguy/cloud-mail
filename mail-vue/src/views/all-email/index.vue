@@ -10,10 +10,12 @@
                  show-status
                  actionLeft="4px"
                  :show-account-icon="false"
+                 :show-claim="params.type === 'noone'"
                  :time-sort="params.timeSort"
                  :item-height="65"
                  @jump="jumpContent"
                  @right-search="rightSearch"
+                 @claim="claimNoRecipient"
                  :type="'all-email'"
 
     >
@@ -95,7 +97,8 @@ import {
   allEmailList,
   allEmailDelete,
   allEmailBatchDelete,
-  allEmailLatest
+  allEmailLatest,
+  allEmailClaimNoRecipient
 } from "@/request/all-email.js";
 import {Icon} from "@iconify/vue";
 import router from "@/router/index.js";
@@ -119,6 +122,7 @@ const searchValue = ref('')
 const mySelect = ref()
 const showBathDelete = ref(false)
 const clearLoading = ref(false)
+const claimLoading = ref(false)
 
 onMounted(() => {
   latest();
@@ -232,6 +236,42 @@ function rightSearch(type, value) {
   params.searchType = type;
   searchValue.value = value;
   search();
+}
+
+function claimNoRecipient(emailIds) {
+  if (claimLoading.value || !emailIds.length) return
+  if (emailIds.length > 50) {
+    ElMessage({message: t('claimNoRecipientLimit'), type: 'warning', plain: true})
+    return
+  }
+
+  ElMessageBox.confirm(t('claimNoRecipientConfirm', {count: emailIds.length}), {
+    confirmButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
+    type: 'warning'
+  }).then(() => {
+    claimLoading.value = true
+    return allEmailClaimNoRecipient(emailIds).then(({claimedCount, skippedCount}) => {
+      if (claimedCount && skippedCount) {
+        ElMessage({
+          message: t('claimNoRecipientPartial', {claimed: claimedCount, skipped: skippedCount}),
+          type: 'warning',
+          plain: true
+        })
+      } else if (claimedCount) {
+        ElMessage({
+          message: t('claimNoRecipientSuccess', {count: claimedCount}),
+          type: 'success',
+          plain: true
+        })
+      } else {
+        ElMessage({message: t('claimNoRecipientNone'), type: 'warning', plain: true})
+      }
+      sysEmailScroll.value.refreshList()
+    }).finally(() => {
+      claimLoading.value = false
+    })
+  })
 }
 
 function search() {

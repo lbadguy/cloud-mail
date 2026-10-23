@@ -68,6 +68,7 @@ const en = {
 	notAdmin: 'The entered email is not an administrator email',
 	emailExistDatabase: 'Email already exists in the database',
 	notConfigOss: 'Object storage not configured',
+	claimNoRecipientLimit: 'You can claim up to 50 emails at a time',
 	perms: {
 		"邮件": "Emails",
 		"邮件发送": "Send Email",
