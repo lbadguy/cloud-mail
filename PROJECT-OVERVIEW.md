@@ -4,6 +4,8 @@ This document is the handoff point for future agents and maintainers. It describ
 
 ## 1. Repository and production
 
+- Integrated stable upstream release: `v3.4.0`.
+
 - Fork: `https://github.com/lbadguy/cloud-mail`
 - Upstream: `https://github.com/maillab/cloud-mail`
 - Production branch: `main`
@@ -19,7 +21,7 @@ Git remotes are intentionally asymmetric: `origin` may push to the fork, while `
 
 - `mail-worker/`: Cloudflare Worker, Hono APIs, D1/KV access, inbound email handling, Resend webhooks, and scheduled maintenance.
 - `mail-vue/`: Vue 3 + Vite frontend bundled into Worker assets.
-- `mail-worker/src/init/init.js`: compatible database initialization and additive migrations.
+- `mail-worker/src/init/init.js`: compatible database initialization and additive migrations. Upstream versioned migrations are kept separate from the fork's `engagementDB` and `trashDB` migrations to avoid name collisions.
 - `mail-worker/src/service/resend-service.js`: Resend webhook verification and event processing.
 - `mail-worker/src/service/email-service.js`: email persistence and engagement counters.
 - `mail-worker/src/lib/email-list-columns.js`: fields exposed to the frontend email list.
@@ -71,9 +73,9 @@ The workflow `.github/workflows/sync-upstream.yml` is disabled by default and ca
 
 When started manually for a check:
 
-1. Fetch `upstream/main` and tags.
+1. Fetch the latest stable upstream Release tag.
 2. Create an `update/upstream-*` branch.
-3. Merge upstream into that branch.
+3. Merge that stable release into the branch.
 4. Build the frontend, run Worker unit tests, and run Wrangler dry-run.
 5. Push the verified branch and open a Pull Request against `main`.
 
@@ -86,7 +88,7 @@ Administrator-triggered behavior:
 3. `Ignore this version` stores only that tag in the browser and does not suppress later versions.
 4. `Update now` calls the authenticated Worker endpoint.
 5. The Worker dispatches `sync-upstream.yml` with `apply=true` using a server-side GitHub token.
-6. The workflow merges and validates upstream, pushes the verified result to `main`, and starts `deploy-production.yml`.
+6. The workflow merges and validates upstream, pushes the verified result to `main`, and explicitly dispatches `deploy-production.yml` (pushes made with `GITHUB_TOKEN` do not trigger another push workflow).
 7. A merge conflict or failed validation stops the update before production deployment.
 
 The sync workflow also updates the frontend's displayed `currentVersion` to the exact stable release tag before validation, so the version label does not remain stuck on an older release after a successful update.
@@ -131,7 +133,8 @@ Then verify:
 
 ## 8. Current caveats
 
-- GitHub Releases and `upstream/main` are different concepts. The UI checks the latest stable Release; the sync workflow checks upstream commits.
+- GitHub Releases and `upstream/main` are different concepts. Both the UI and sync workflow use the latest stable Release; unreleased upstream commits are not installed.
+- The upstream 3.4 theme selector uses the same persisted `themeMode` store as the header, including System mode.
 - A stable Release is not a guarantee of zero bugs or compatibility with this Cloudflare account.
 - The update button starts a controlled automation; it is not an unconditional blind deployment.
 - Keep unrelated local files and deployment notes out of feature commits unless they are explicitly part of the requested change.

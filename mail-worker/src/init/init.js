@@ -33,12 +33,13 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
-		await this.v3_5DB(c);
+		await this.engagementDB(c);
+		await this.trashDB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
 
-	async v3_5DB(c) {
+	async trashDB(c) {
 		try {
 			const col = await c.env.db.prepare(`SELECT * FROM pragma_table_info('email') WHERE name = 'deleted_at' LIMIT 1`).first();
 			if (!col) {
@@ -67,7 +68,7 @@ const dbInit = {
 		}
 	},
 
-	async v3_4DB(c) {
+	async engagementDB(c) {
 		const columns = [
 			`ALTER TABLE email ADD COLUMN first_opened_at TEXT;`,
 			`ALTER TABLE email ADD COLUMN last_opened_at TEXT;`,
@@ -97,6 +98,14 @@ const dbInit = {
 		`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_tracking_email_id ON email_tracking_event(email_id)`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_tracking_resend_email_id ON email_tracking_event(resend_email_id)`).run();
+	},
+
+	async v3_4DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN sender_email TEXT NOT NULL DEFAULT '';`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
 	},
 
 	async v3_3DB(c) {
