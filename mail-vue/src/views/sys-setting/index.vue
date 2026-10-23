@@ -444,21 +444,21 @@
           <div class="settings-card about">
             <div class="card-title">{{ $t('about') }}</div>
             <div class="card-content">
-              <div class="concerning-item about-version-row">
+              <div class="concerning-item">
                 <span>{{ $t('version') }} :</span>
-                <div class="about-actions">
+                <div class="community">
                   <el-badge is-dot :hidden="!hasUpdate">
-                    <el-button class="version-button" @click="openUpdateInfo">
+                    <el-button @click="openUpdateInfo">
                       {{ currentVersion }}
                       <template #icon>
-                        <Icon icon="qlementine-icons:version-control-16" width="18" height="18" color="#1890FF"/>
+                        <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
                       </template>
                     </el-button>
                   </el-badge>
-                  <el-button class="check-update-button" :loading="updateChecking" @click="checkForUpdates">
+                  <el-button style="margin-left: 12px" :loading="updateChecking" @click="checkForUpdates">
                     {{ $t('checkUpdate') }}
                     <template #icon>
-                      <Icon icon="mdi:refresh" width="18" height="18"/>
+                      <Icon icon="mdi:refresh" width="22" height="22"/>
                     </template>
                   </el-button>
                 </div>
@@ -2286,36 +2286,13 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .concerning-item {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  justify-items: start;
-  column-gap: 20px;
-  row-gap: 10px;
 
-  .about-actions,
   .community {
     display: flex;
-    gap: 12px;
+    row-gap: 10px;
     flex-wrap: wrap;
-
-    :deep(.el-button) {
-      min-height: 32px;
-      margin: 0;
-      padding: 0 12px;
-      line-height: 1;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    :deep(.el-button .el-icon) {
-      margin-right: 0;
-    }
-  }
-
-  :deep(.el-badge) {
-    display: inline-flex;
   }
 
   :deep(.el-button) {
@@ -2329,18 +2306,8 @@ function editSetting(settingForm, refreshStatus = true) {
 
   > span:first-child {
     font-weight: normal;
-    padding-right: 0;
+    padding-right: 20px;
     white-space: nowrap;
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: 72px minmax(0, 1fr);
-    column-gap: 8px;
-
-    .about-actions,
-    .community {
-      gap: 8px;
-    }
   }
 }
 
