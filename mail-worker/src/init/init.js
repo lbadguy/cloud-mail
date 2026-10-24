@@ -35,8 +35,14 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.engagementDB(c);
 		await this.trashDB(c);
+		await this.sourceHeadersDB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async sourceHeadersDB(c) {
+		const column = await c.env.db.prepare(`SELECT name FROM pragma_table_info('email') WHERE name = 'source_headers'`).first();
+		if (!column) await c.env.db.prepare(`ALTER TABLE email ADD COLUMN source_headers TEXT`).run();
 	},
 
 	async trashDB(c) {

@@ -11,6 +11,8 @@ import loading from "@/components/loading/index.vue";
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
 import {useSettingStore} from '@/store/setting.js'
+import {usePrivacyStore} from '@/store/privacy.js'
+import {prepareEmailHtml} from '@/utils/email-html.js'
 
 defineExpose({
   clearEditor,
@@ -38,6 +40,8 @@ const editorRef = ref(null);
 const showLoading = ref(false);
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
+const privacy = usePrivacyStore();
+const protectContent = html => prepareEmailHtml(html, {protectReading: privacy.protectReading, forEditor: true}).html;
 
 onMounted(() => {
   initTinyMCE();
@@ -49,8 +53,12 @@ onBeforeUnmount(() => {
 
 watch(() => props.defValue, (newValue) => {
   if (editor.value && editor.value.getContent() !== newValue) {
-    editor.value.setContent(newValue);
+    editor.value.setContent(protectContent(newValue));
   }
+});
+
+watch(() => privacy.protectReading, enabled => {
+  if (enabled && editor.value) editor.value.setContent(protectContent(editor.value.getContent()));
 });
 
 watch(() => [uiStore.dark, settingStore.lang], () => {
@@ -113,7 +121,7 @@ function initEditor() {
     setup: (ed) => {
       editor.value = ed;
       ed.on('init', () => {
-        ed.setContent(props.defValue);
+        ed.setContent(protectContent(props.defValue));
         isInitialized.value = true;
       });
       ed.on('input change', () => {

@@ -12,6 +12,7 @@ import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
 import webhookService from '../service/webhook-service';
+import {captureSourceHeaders} from '../lib/email-source';
 
 export async function email(message, env, ctx) {
 
@@ -113,6 +114,7 @@ export async function email(message, env, ctx) {
 			sendEmail: fromAddress,
 			name: email.from?.name || emailUtils.getName(fromAddress),
 			senderEmail: message.from || '',
+			sourceHeaders: captureSourceHeaders(email),
 			subject: email.subject,
 			code,
 			content: email.html,

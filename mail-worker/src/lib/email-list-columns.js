@@ -16,7 +16,9 @@ function sqlStripWhitespace(column) {
 }
 
 /** 完整查询：全部字段 */
-export const emailListColumns = getTableColumns(email);
+// Source headers are only fetched from the ownership-checked detail endpoint.
+const {sourceHeaders, ...listColumns} = getTableColumns(email);
+export const emailListColumns = listColumns;
 
 /** 摘要查询：列表 + 详情头部；有 text 则不读 content，没有才查 content（去空白），响应里不返回 content */
 export const emailBriefColumns = {

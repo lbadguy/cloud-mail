@@ -56,6 +56,8 @@
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
+          <EmailSource v-if="email.type === 0 && email.emailId" :email-id="email.emailId" :admin="emailStore.contentData.delType === 'physics'"/>
+          <el-alert v-if="email.content && privacy.protectReading" class="privacy-notice" :title="t('readingPrivacyActive')" :description="t('readingPrivacyBodyNotice')" type="info" :closable="false" show-icon/>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
             <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
             <pre v-else class="email-text" >{{email.text}}</pre>
@@ -115,9 +117,12 @@ import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 import OpenEventsPopover from '@/components/open-events-popover/index.vue'
+import EmailSource from '@/components/email-source/index.vue'
+import {usePrivacyStore} from '@/store/privacy.js'
 const { t } = useI18n()
 
 const uiStore = useUiStore();
+const privacy = usePrivacyStore();
 const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();

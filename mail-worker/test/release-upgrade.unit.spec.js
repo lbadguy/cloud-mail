@@ -27,8 +27,9 @@ describe('v3.4.0 database compatibility', () => {
 			if (hasCustomSchema) {
 				await dbInit.engagementDB(context)
 				await dbInit.trashDB(context)
+				await dbInit.sourceHeadersDB(context)
 				sqlite.exec(`
-					UPDATE email SET open_count = 3, last_opened_at = '2026-10-20T12:00:00Z', deleted_at = '2026-10-01 00:00:00';
+					UPDATE email SET open_count = 3, last_opened_at = '2026-10-20T12:00:00Z', deleted_at = '2026-10-01 00:00:00', source_headers = '{"version":1,"headers":[]}';
 					INSERT INTO email_tracking_event (event_id, email_id, resend_email_id, event_type, occurred_at)
 					VALUES ('event_test', 1, 'resend_test', 'email.opened', '2026-10-20T12:00:00Z');
 				`)
@@ -37,9 +38,11 @@ describe('v3.4.0 database compatibility', () => {
 				await dbInit.v3_4DB(context)
 				await dbInit.engagementDB(context)
 				await dbInit.trashDB(context)
+				await dbInit.sourceHeadersDB(context)
 			}
 			const row = sqlite.prepare('SELECT * FROM email WHERE email_id = 1').get()
 			expect(row.content).toBe('keep original body')
+			expect(row.source_headers).toBe(hasCustomSchema ? '{"version":1,"headers":[]}' : null)
 			expect(row.sender_email).toBe('')
 			expect(row.open_count).toBe(hasCustomSchema ? 3 : 0)
 			expect(row.click_count).toBe(0)

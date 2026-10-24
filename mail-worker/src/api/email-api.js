@@ -19,6 +19,12 @@ app.get('/email/openEvents', async (c) => {
 	return c.json(result.ok(list));
 });
 
+app.get('/email/source', async (c) => {
+	const data = await emailService.source(c, c.req.query(), userContext.getUserId(c));
+	c.header('Cache-Control', 'no-store');
+	return c.json(result.ok(data));
+});
+
 app.delete('/email/delete', async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const params = { ...c.req.query(), ...body };

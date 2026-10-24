@@ -48,6 +48,14 @@
       </div>
     </div>
     <div class="preference-item">
+      <div class="title">{{$t('readingPrivacy')}}</div>
+      <div class="language-row setting-row">
+        <div id="reading-privacy-label">{{$t('protectReading')}}</div>
+        <el-switch :model-value="privacy.protectReading" @change="privacy.setProtectReading" aria-labelledby="reading-privacy-label" aria-describedby="reading-privacy-description"/>
+      </div>
+      <p id="reading-privacy-description" class="privacy-description">{{$t('readingPrivacyDescription')}}</p>
+    </div>
+    <div class="preference-item">
       <div class="title" id="theme-label">{{$t('themeStyle')}}</div>
       <ThemeSelector/>
     </div>
@@ -91,11 +99,13 @@ import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import ThemeSelector from "@/components/theme-selector/index.vue";
+import {usePrivacyStore} from '@/store/privacy.js';
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
 const settingStore = useSettingStore()
 const uiStore = useUiStore()
+const privacy = usePrivacyStore()
 const userStore = useUserStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
@@ -334,6 +344,14 @@ function submitPwd() {
   .language-select {
     width: 110px;
     max-width: 100%;
+  }
+
+  .privacy-description {
+    max-width: 640px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--el-text-color-secondary);
   }
 
   .del-email {

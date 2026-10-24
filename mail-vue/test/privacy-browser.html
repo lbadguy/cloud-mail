@@ -1,0 +1,85 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>阅读隐私浏览器验收</title></head><body>
+<h1>阅读隐私浏览器验收（仅本机测试）</h1>
+<pre id="result">运行中…</pre><div id="frames"></div><div id="component"></div>
+<script type="module">
+import {buildEmailDocument, prepareEmailHtml} from '/src/utils/email-html.js'
+import {createApp, h, nextTick, ref} from 'vue'
+import {createPinia} from 'pinia'
+import {createI18n} from 'vue-i18n'
+import ShadowHtml from '/src/components/shadow-html/index.vue'
+import {useUserStore} from '/src/store/user.js'
+import {usePrivacyStore} from '/src/store/privacy.js'
+const base = `${location.origin}/test/probe/pixel/`
+const id = Date.now()
+const attack = `<body style="background:url('${base}body-${id}')"><style>@import '${base}import-${id}'; @font-face{font-family:probe;src:url('${base}font-${id}')} .probe{font-family:probe;background-image:image-set(url('${base}css-${id}') 1x)}</style><p class="probe" style="background:url('${base}inline-${id}')">安全阅读测试正文</p><img src="${base}image-${id}" srcset="${base}srcset-${id} 2x"><img src="//127.0.0.1:3001/test/probe/pixel/protocol-${id}"><img src="/test/probe/pixel/relative-${id}"><a ping="${base}ping-${id}" href="https://example.com">外部链接（不点击）</a><svg><image href="${base}svg-${id}"/></svg><iframe src="${base}frame-${id}"></iframe></body>`
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+async function until(check) {
+  const deadline = Date.now() + 10000
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error('等待组件布局超时')
+    await wait(100)
+  }
+}
+const counts = () => fetch('/test/probe/count', {cache: 'no-store'}).then(r => r.json())
+const frames = document.getElementById('frames')
+async function render(protectedMode, html = attack) {
+  const frame = document.createElement('iframe')
+  frame.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox')
+  frame.referrerPolicy = 'no-referrer'
+  frame.style.cssText = 'width:100%;height:160px;border:1px solid #ccc'
+  frame.srcdoc = buildEmailDocument(html, protectedMode)
+  const loaded = new Promise(resolve => frame.onload = resolve)
+  frames.append(frame)
+  await loaded
+  await wait(250)
+  return frame
+}
+try {
+  const before = await counts()
+  const protectedFrame = await render(true)
+  await render(true)
+  const pinia = createPinia()
+  const user = useUserStore(pinia)
+  user.user = {userId: 7001}
+  const privacy = usePrivacyStore(pinia)
+  if (!privacy.protectReading) throw new Error('默认保护未开启')
+  const componentHtml = ref(attack)
+  const componentApp = createApp({render: () => h(ShadowHtml, {html: componentHtml.value})})
+  componentApp.use(pinia).use(createI18n({legacy:false, locale:'zh', messages:{zh:{emailBody:'测试邮件正文'}}})).mount('#component')
+  await nextTick()
+  await wait(350)
+  const componentFrame = document.querySelector('#component iframe')
+  if (!componentFrame || componentFrame.clientHeight < 100 || componentFrame.clientHeight > 1000) throw new Error('真实正文组件高度异常')
+  if (!componentFrame.contentDocument.body.textContent.includes('安全阅读测试正文')) throw new Error('真实正文组件内容缺失')
+  const editor = document.createElement('div')
+  editor.innerHTML = prepareEmailHtml(attack, {protectReading: true, forEditor: true}).html
+  frames.append(editor)
+  await wait(350)
+  const afterProtected = await counts()
+  const protectedHits = Object.keys(afterProtected).filter(k => k.includes(id) && afterProtected[k] > (before[k] || 0))
+  if (protectedHits.length) throw new Error(`保护模式有联网请求：${JSON.stringify(protectedHits)}`)
+  if (!protectedFrame.contentDocument.body.textContent.includes('安全阅读测试正文')) throw new Error('正文缺失')
+  if (![...protectedFrame.contentDocument.querySelectorAll('style')].some(style => style.textContent.includes('@font-face'))) throw new Error('测试样式缺失')
+  if (!protectedFrame.contentDocument.body.style.background.includes('/test/probe/pixel/body-')) throw new Error('原邮件 body 样式未保留，CSS 测试不成立')
+  const enabled = await render(false, `<img src="${base}allowed-${id}"><p>关闭保护对照组</p>`)
+  const afterEnabled = await counts()
+  if (!afterEnabled[`/test/probe/pixel/allowed-${id}`]) throw new Error('对照组未请求，测试环境不成立')
+  const link = protectedFrame.contentDocument.querySelector('a')
+  if (link.getAttribute('ping') || link.rel !== 'noopener noreferrer') throw new Error('链接保护缺失')
+  componentHtml.value = `<p>${'长邮件正文<br>'.repeat(150)}</p>`
+  await nextTick()
+  await until(() => componentFrame.clientHeight >= 2500)
+  componentHtml.value = '<body style="height:100%"><div style="height:100vh">百分比高度测试</div></body>'
+  await nextTick()
+  await wait(1000)
+  const settledHeight = componentFrame.clientHeight
+  await wait(350)
+  if (componentFrame.clientHeight !== settledHeight) throw new Error('邮件百分比高度持续膨胀')
+  componentHtml.value = '<p>组件正文显示正常</p>'
+  await nextTick()
+  await until(() => componentFrame.clientHeight <= 150)
+  document.getElementById('result').textContent = JSON.stringify({status:'PASS', repeatedProtectedViews:2, protectedNetworkRequests:0, editorNetworkRequests:0, controlImageRequested:true, bodyVisible:true, actualVueComponent:true, longMailAndViewportHeight:true, tested:'images/srcset/relative URLs/CSS backgrounds/font/import/SVG/iframe/editor'}, null, 2)
+} catch (error) {
+  document.getElementById('result').textContent = `FAIL: ${error.message}`
+}
+</script></body></html>

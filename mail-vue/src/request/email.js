@@ -29,6 +29,10 @@ export function emailOpenEvents(emailId) {
     return http.get('/email/openEvents', {params: {emailId}})
 }
 
+export function emailSource(emailId, admin = false) {
+    return http.get(admin ? '/allEmail/source' : '/email/source', {params: {emailId}})
+}
+
 export function emailRead(emailIds) {
     return http.put('/email/read', {emailIds})
 }

@@ -1,6 +1,6 @@
 # Cloud Mail SWNB Project Overview
 
-This document is the handoff point for future agents and maintainers. It describes the production topology, the fork relationship, the Resend engagement customization, and the upstream update workflow.
+This document is the handoff point for future agents and maintainers. It describes the production topology, the fork relationship, the Resend engagement customization, reading privacy, source headers, and the upstream update workflow. Never add tokens, raw private messages, or credentials here.
 
 ## 1. Repository and production
 
@@ -76,7 +76,7 @@ When started manually for a check:
 1. Fetch the latest stable upstream Release tag.
 2. Create an `update/upstream-*` branch.
 3. Merge that stable release into the branch.
-4. Build the frontend, run Worker unit tests, and run Wrangler dry-run.
+4. Run frontend privacy tests, build the frontend, run Worker unit tests, and run Wrangler dry-run.
 5. Push the verified branch and open a Pull Request against `main`.
 
 It does not deploy production automatically. A text merge is not considered sufficient: review the behavior of the tracking fields, webhook handling, frontend list/detail fields, and database migrations.
@@ -138,3 +138,34 @@ Then verify:
 - A stable Release is not a guarantee of zero bugs or compatibility with this Cloudflare account.
 - The update button starts a controlled automation; it is not an unconditional blind deployment.
 - Keep unrelated local files and deployment notes out of feature commits unless they are explicitly part of the requested change.
+
+## 9. Reading privacy and source headers
+
+### Reading privacy (default on)
+
+- Personal Settings > Reading privacy > Block read tracking. The switch is stored per account in the current browser by `mail-vue/src/store/privacy.js`; it is not synced to other devices. Missing preferences fail closed.
+- `mail-vue/src/utils/email-html.js` sanitizes HTML with DOMPurify, removes automatic image/network attributes, strips active elements and tracking-link pings, and generates a document whose CSP is placed before email content.
+- `mail-vue/src/components/shadow-html/index.vue` now uses a script-disabled sandboxed iframe, not Shadow DOM. CSP blocks external CSS imports, CSS images, fonts, frames, media, scripts, forms, and network connections while preserving ordinary inline mail layout. Embedded raster data images are allowed; external/CID-rewritten images may be hidden.
+- Reply/forward quotes and reopened drafts are sanitized before entering TinyMCE. In protection mode their styles are stripped to avoid unsandboxed CSS requests.
+- Protection off explicitly permits external mail images; it does not enable scripts. Never turn it off on a suspect message for testing.
+- Local mailbox read/unread flags and outgoing Resend engagement events are unchanged. This does not undo historical requests or protect intentional links, replies, attachments opened separately, other mail clients, or untrusted browser extensions.
+
+### Source and authentication (detail only)
+
+- New inbound mail stores allowlisted, bounded PostalMime header claims in nullable `email.source_headers`; `sourceHeadersDB` is additive and repeat-safe. There is no raw MIME archive or reliable originating-peer IP provided by this implementation.
+- Production workflow prepares the column before deploying code, after confirming a D1 recovery point. A manual deploy must likewise prepare this column first. Normal `/api/init` remains repeat-safe; retaining the column after Worker rollback is harmless.
+- Personal endpoint `/api/email/source?emailId=...` restricts SQL to the logged-in owner. `/api/allEmail/source` uses the existing `all-email:query` permission/admin middleware. Both return `Cache-Control: no-store`.
+- Source headers are deliberately excluded from full and brief list projections. The frontend fetches them only when an incoming mail detail is opened; the section is collapsed initially.
+- `mail-worker/src/lib/email-source.js` extracts deduplicated candidate public IPs from Received/X-Originating-IP. These can be relay/provider addresses or forged claims, not a verified person or location. Authentication-Results are shown as unverified header claims, not independently validated results.
+- No IP/geolocation lookup, third-party request, DNS lookup, or sending of private mail is performed. Historical messages cannot be backfilled; internal mail may lack source data.
+
+### Repeatable verification
+
+Use PowerShell 7, stop on failures, and check native exit codes. Note: upstream `mail-worker`'s `pnpm test` **deploys a test Worker**, so use the explicit unit-test command below instead.
+
+1. `pnpm --dir mail-vue test` (DOM sanitization, CSP, preferences).
+2. From `mail-worker`: `pnpm exec vitest run --config vitest.unit.config.js` (source capture/access, schema/data preservation, existing engagement/claim tests).
+3. `pnpm --dir mail-vue build`.
+4. From `mail-worker`: `pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc`.
+5. From `mail-vue`: `node test/privacy-probe-server.mjs`; open `http://127.0.0.1:3001/test/privacy-browser.html` in a real browser. It serves only synthetic localhost tracking probes: repeated protected views/editor must produce zero requests, with a positive unprotected image control. Stop the server afterward. Test files are not production entry points.
+6. After pushing, verify the exact commit's production workflow, schema initialization, live Personal Settings/default-on switch and an incoming detail. Do not send a real test email or disable protection on a real suspect email without explicit user approval. Report new live inbound-header capture as unverified unless actual inbound data is available.

@@ -124,6 +124,8 @@ import dayjs from "dayjs";
 import {useI18n} from "vue-i18n";
 import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
+import {prepareEmailHtml} from '@/utils/email-html.js';
+import {usePrivacyStore} from '@/store/privacy.js';
 
 defineExpose({
   open,
@@ -526,7 +528,8 @@ function openReply(email) {
 function formatImage(content) {
   content = content || '';
   const domain = settingStore.settings.r2Domain;
-  return content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
+  const html = content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
+  return prepareEmailHtml(html, {protectReading: usePrivacyStore().protectReading, forEditor: true}).html;
 }
 
 function open() {

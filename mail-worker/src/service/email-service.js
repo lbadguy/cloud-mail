@@ -23,8 +23,19 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import {describeSource} from '../lib/email-source';
 
 const emailService = {
+
+	async source(c, params, userId) {
+		const emailId = Number(params?.emailId);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0) throw new BizError('Invalid email ID', 400);
+		const ownerClause = userId === undefined ? '' : 'AND user_id = ?';
+		const row = await c.env.db.prepare(`SELECT source_headers AS sourceHeaders FROM email WHERE email_id = ? ${ownerClause}`)
+			.bind(...(userId === undefined ? [emailId] : [emailId, userId])).first();
+		if (!row) throw new BizError('Email not found', 404);
+		return describeSource(row.sourceHeaders);
+	},
 
 	async list(c, params, userId) {
 

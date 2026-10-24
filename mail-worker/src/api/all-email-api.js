@@ -28,6 +28,12 @@ app.get('/allEmail/openEvents', async (c) => {
 	return c.json(result.ok(list));
 })
 
+app.get('/allEmail/source', async (c) => {
+	const data = await emailService.source(c, c.req.query());
+	c.header('Cache-Control', 'no-store');
+	return c.json(result.ok(data));
+})
+
 app.put('/allEmail/claimNoRecipient', async (c) => {
 	const data = await emailService.claimNoRecipient(c, await c.req.json(), userContext.getUser(c));
 	return c.json(result.ok(data));

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test": "node --test test/*.test.js",
     "dev": "vite --mode dev",
     "remote": "vite --mode remote",
     "build": "vite build --mode release",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
+    "jsdom": "26.1.0",
     "less": "^4.2.2",
     "sass": "^1.82.0",
     "terser": "^5.39.0",

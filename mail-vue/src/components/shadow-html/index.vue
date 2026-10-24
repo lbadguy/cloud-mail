@@ -1,124 +1,61 @@
 <template>
-  <div class="content-box" ref="contentBox">
-    <div ref="container" class="content-html"></div>
-  </div>
+  <iframe
+      ref="frame"
+      class="email-document"
+      :title="t('emailBody')"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      referrerpolicy="no-referrer"
+      :srcdoc="documentHtml"
+      :style="{height: `${height}px` }"
+      @load="observeBody"
+  />
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import {computed, ref, onBeforeUnmount} from 'vue'
+import {useI18n} from 'vue-i18n'
+import {usePrivacyStore} from '@/store/privacy.js'
+import {buildEmailDocument} from '@/utils/email-html.js'
 
-const props = defineProps({
-  html: {
-    type: String,
-    required: true
+const props = defineProps({html: {type: String, required: true}})
+const {t} = useI18n()
+const privacy = usePrivacyStore()
+const frame = ref(null)
+const height = ref(320)
+let observer
+let resizeFrame
+const documentHtml = computed(() => buildEmailDocument(props.html, privacy.protectReading))
+
+function observeBody() {
+  observer?.disconnect()
+  cancelAnimationFrame(resizeFrame)
+  const body = frame.value?.contentDocument?.body
+  if (!body) return
+  let updates = 0
+  const resize = () => {
+    cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(() => {
+      // Viewport-relative mail CSS must not grow the iframe forever. Very
+      // large/pathological documents keep the iframe's native scroll fallback.
+      const next = Math.min(30000, Math.max(100, Math.ceil(Math.max(body.scrollHeight, body.getBoundingClientRect().height))))
+      if (next !== height.value && updates++ < 12) height.value = next
+    })
   }
-})
-
-const container = ref(null)
-const contentBox = ref(null)
-let shadowRoot = null
-
-function updateContent() {
-  if (!shadowRoot) return;
-
-  // 1. 提取 <body> 的 style 属性（如果存在）
-  const bodyStyleRegex = /<body[^>]*style="([^"]*)"[^>]*>/i;
-  const bodyStyleMatch = props.html.match(bodyStyleRegex);
-  const bodyStyle = bodyStyleMatch ? bodyStyleMatch[1] : '';
-
-  // 2. 移除 <body> 标签（保留内容）
-  const cleanedHtml = props.html.replace(/<\/?body[^>]*>/gi, '');
-
-  // 3. 将 body 的 style 应用到 .shadow-content
-  shadowRoot.innerHTML = `
-    <style>
-      :host {
-        all: initial;
-        width: 100%;
-        height: 100%;
-        font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
-                    'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
-        color: #13181D;
-        word-break: break-word;
-      }
-
-      h1, h2, h3, h4 {
-          font-size: 18px;
-          font-weight: 700;
-      }
-
-      p {
-        margin: 0;
-      }
-
-      a {
-        text-decoration: none;
-        color: #0E70DF;
-      }
-
-      .shadow-content {
-        background: #FFFFFF;
-        width: fit-content;
-        height: fit-content;
-        min-width: 100%;
-        ${bodyStyle ? bodyStyle : ''} /* 注入 body 的 style */
-      }
-
-      img:not(table img) {
-        max-width: 100%;
-        height: auto !important;
-      }
-
-    </style>
-    <div class="shadow-content">
-      ${cleanedHtml}
-    </div>
-  `;
+  observer = new ResizeObserver(resize)
+  observer.observe(body)
+  resize()
 }
-
-function autoScale() {
-  if (!shadowRoot || !contentBox.value) return
-
-  const parent = contentBox.value
-  const shadowContent = shadowRoot.querySelector('.shadow-content')
-
-  if (!shadowContent) return
-
-  const parentWidth = parent.offsetWidth
-  const childWidth = shadowContent.scrollWidth
-
-  if (childWidth === 0) return
-
-  const scale = parentWidth / childWidth
-
-  const hostElement = shadowRoot.host
-  hostElement.style.zoom = scale
-}
-
-onMounted(() => {
-  shadowRoot = container.value.attachShadow({ mode: 'open' })
-  updateContent()
-  autoScale()
-})
-
-watch(() => props.html, () => {
-  updateContent()
-  autoScale()
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  cancelAnimationFrame(resizeFrame)
 })
 </script>
 
 <style scoped>
-.content-box {
+.email-document {
+  display: block;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
-  font-family: Inter, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
-}
-
-.content-html {
-  width: 100%;
-  height: 100%;
+  border: 0;
+  background: #fff;
 }
 </style>

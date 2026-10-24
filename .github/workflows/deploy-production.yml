@@ -74,6 +74,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           pnpm --dir mail-vue install --frozen-lockfile
           if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency installation failed.' }
+          pnpm --dir mail-vue test
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend privacy tests failed.' }
           pnpm --dir mail-vue build
           if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
           pnpm --dir mail-worker install --frozen-lockfile
@@ -119,6 +121,25 @@ jobs:
             }
             "timestamp=$timestamp" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding UTF8 -Append
             'Cloudflare D1 Time Travel recovery point confirmed.'
+          } finally {
+            Pop-Location
+          }
+
+      # Apply this additive column before new code can receive email; keeping
+      # it after a rollback is harmless and avoids a deployment-time write gap.
+      - name: Prepare source header storage
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location mail-worker
+          try {
+            $schema = pnpm exec wrangler d1 execute lc7c-cloud-mail-db --remote --config wrangler.production.jsonc --command "SELECT name FROM pragma_table_info('email') WHERE name = 'source_headers'" --json | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Reading source header schema failed.' }
+            if (-not $schema -or $schema[0].success -ne $true) { throw 'Invalid source header schema response.' }
+            if (@($schema[0].results).Count -eq 0) {
+              pnpm exec wrangler d1 execute lc7c-cloud-mail-db --remote --config wrangler.production.jsonc --command 'ALTER TABLE email ADD COLUMN source_headers TEXT' --json
+              if ($LASTEXITCODE -ne 0) { throw 'Preparing source header storage failed.' }
+            }
           } finally {
             Pop-Location
           }
