@@ -1,0 +1,56 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>邮件隐私界面验收</title></head><body>
+<div id="app"></div>
+<script type="module">
+import {createApp, h, ref} from 'vue'
+import {createPinia, setActivePinia} from 'pinia'
+import {createI18n} from 'vue-i18n'
+import {createRouter, createMemoryHistory, RouterView} from 'vue-router'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import 'element-plus/theme-chalk/dark/css-vars.css'
+import '/src/style.css'
+import zh from '/src/i18n/zh.js'
+import {useEmailStore} from '/src/store/email.js'
+import {useUserStore} from '/src/store/user.js'
+import {useSettingStore} from '/src/store/setting.js'
+import {usePrivacyStore} from '/src/store/privacy.js'
+const pinia = createPinia()
+setActivePinia(pinia)
+const {default: Content} = await import('/src/views/content/index.vue')
+const {default: Settings} = await import('/src/views/setting/index.vue')
+useUserStore(pinia).user = {userId:7001, name:'界面测试',email:'test@example.net',account:{accountId:7001}}
+useSettingStore(pinia).lang = 'zh'
+const emails = useEmailStore(pinia)
+const privacy = usePrivacyStore(pinia)
+let message = 0
+function openMail(admin = false) {
+    const id = ++message
+    emails.contentData = {email:{emailId:id, type:0, subject:'测试邮件 · 仅本机',name:'测试发件人',sendEmail:'sender@example.net',recipient:'[{"address":"test@example.net"}]',createTime:'2026-10-24 20:23:42',content:`<p>这是测试正文。</p><img src="${location.origin}/test/probe/pixel/ui-message-${id}">`,attList:[]}, delType:admin?'physics':'logic',showStar:!admin,showReply:!admin,showUnread:false}
+    router.push('/mail')
+}
+const router = createRouter({history:createMemoryHistory(),routes:[{path:'/',component:{render:()=>h('p','选择测试页面')}},{path:'/mail',component:Content},{path:'/settings',component:Settings}]})
+const dark = ref(false)
+const app = createApp({setup(){return()=>h('div', {class:'fixture'},[
+    h('nav',[
+        h('button',{onClick:()=>openMail()},'普通邮件'),
+        h('button',{onClick:()=>openMail(true)},'管理员邮件'),
+        h('button',{onClick:()=>router.push('/settings')},'个人设置'),
+        h('button',{onClick:()=>router.back()},'返回上一页'),
+        h('button',{onClick:()=>{dark.value=!dark.value;document.documentElement.classList.toggle('dark',dark.value)}},'切换明暗'),
+        h('span', {id:'global-default'},`默认保护：${privacy.protectReading?'开':'关'}`),
+    ]),h('main',[h(RouterView)]),
+])}})
+app.directive('perm',{})
+app.use(pinia).use(router).use(ElementPlus).use(createI18n({legacy:false,locale:'zh',messages:{zh}}))
+await router.isReady()
+app.mount('#app')
+openMail()
+</script>
+<style>
+html,body,#app {margin:0;height:100%;background:var(--el-bg-color);color:var(--el-text-color-primary)}
+.fixture {height:100%;display:flex;flex-direction:column}
+nav {display:flex;flex-wrap:wrap;gap:10px;padding:12px;border-bottom:1px solid var(--el-border-color)}
+nav button {font:inherit;cursor:pointer}nav span {font-size:12px;align-self:center}
+main {flex:1;min-height:0}
+</style>
+</body></html>

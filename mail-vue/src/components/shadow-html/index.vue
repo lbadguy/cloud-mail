@@ -17,14 +17,17 @@ import {useI18n} from 'vue-i18n'
 import {usePrivacyStore} from '@/store/privacy.js'
 import {buildEmailDocument} from '@/utils/email-html.js'
 
-const props = defineProps({html: {type: String, required: true}})
+const props = defineProps({
+  html: {type: String, required: true},
+  protectReading: {type: Boolean, default: undefined},
+})
 const {t} = useI18n()
 const privacy = usePrivacyStore()
 const frame = ref(null)
 const height = ref(320)
 let observer
 let resizeFrame
-const documentHtml = computed(() => buildEmailDocument(props.html, privacy.protectReading))
+const documentHtml = computed(() => buildEmailDocument(props.html, props.protectReading ?? privacy.protectReading))
 
 function observeBody() {
   observer?.disconnect()

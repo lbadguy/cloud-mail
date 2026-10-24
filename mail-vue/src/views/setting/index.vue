@@ -50,10 +50,16 @@
     <div class="preference-item">
       <div class="title">{{$t('readingPrivacy')}}</div>
       <div class="language-row setting-row">
-        <div id="reading-privacy-label">{{$t('protectReading')}}</div>
-        <el-switch :model-value="privacy.protectReading" @change="privacy.setProtectReading" aria-labelledby="reading-privacy-label" aria-describedby="reading-privacy-description"/>
+        <div class="privacy-label">
+          <span id="reading-privacy-label">{{$t('protectReading')}}</span>
+          <el-tooltip :content="$t('readingPrivacyDescription')" :trigger="['hover', 'focus', 'click']" :popper-style="{maxWidth: '300px'}">
+            <button type="button" class="privacy-help" :aria-label="$t('readingPrivacyHelp')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.1"/></svg>
+            </button>
+          </el-tooltip>
+        </div>
+        <el-switch :model-value="privacy.protectReading" @change="privacy.setProtectReading" aria-labelledby="reading-privacy-label"/>
       </div>
-      <p id="reading-privacy-description" class="privacy-description">{{$t('readingPrivacyDescription')}}</p>
     </div>
     <div class="preference-item">
       <div class="title" id="theme-label">{{$t('themeStyle')}}</div>
@@ -346,12 +352,15 @@ function submitPwd() {
     max-width: 100%;
   }
 
-  .privacy-description {
-    max-width: 640px;
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.7;
+  .privacy-label {display: flex; align-items: center; gap: 8px;}
+  .privacy-help {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: var(--el-text-color-secondary);
+    cursor: pointer;
+    &:focus-visible {outline: 2px solid var(--el-color-primary); outline-offset: 3px;}
   }
 
   .del-email {

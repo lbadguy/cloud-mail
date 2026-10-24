@@ -9,6 +9,20 @@
       </span>
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="fluent-mdl2:reply" width="19" height="19" />
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
+      <EmailSource v-if="email.type === 0 && email.emailId" :email-id="email.emailId" :admin="emailStore.contentData.delType === 'physics'"/>
+      <el-tooltip v-if="email.emailId" :content="t(readingProtected ? 'readingPrivacyOnTip' : 'readingPrivacyOffTip')" :trigger="['hover', 'focus']" :popper-style="{maxWidth: '280px'}">
+        <button type="button" class="privacy-toggle" :class="{'is-protected': readingProtected}" :aria-label="t(readingProtected ? 'disableMailPrivacy' : 'enableMailPrivacy')" :aria-pressed="readingProtected" @click="temporaryPrivacy = !readingProtected">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <template v-if="readingProtected">
+              <path d="M12 3 4.5 6v5.2c0 4.6 3.1 7.8 7.5 9.8 4.4-2 7.5-5.2 7.5-9.8V6L12 3Z"/>
+              <path d="m8.5 12 2.3 2.3 4.7-4.8"/>
+            </template>
+            <template v-else>
+              <path d="m3 3 18 18M9.3 4.1 12 3l7.5 3v5.2c0 1.1-.2 2.1-.5 3M4.5 6v5.2c0 4.6 3.1 7.8 7.5 9.8 1.6-.7 3-1.6 4.1-2.6"/>
+            </template>
+          </svg>
+        </button>
+      </el-tooltip>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -56,10 +70,8 @@
             <el-alert v-if="email.status === 4" :closable="false" :title="$t('complained')" class="email-msg" type="warning" show-icon />
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
-          <EmailSource v-if="email.type === 0 && email.emailId" :email-id="email.emailId" :admin="emailStore.contentData.delType === 'physics'"/>
-          <el-alert v-if="email.content && privacy.protectReading" class="privacy-notice" :title="t('readingPrivacyActive')" :description="t('readingPrivacyBodyNotice')" type="info" :closable="false" show-icon/>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
+            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" :protect-reading="readingProtected" v-if="email.content" />
             <pre v-else class="email-text" >{{email.text}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
@@ -142,6 +154,15 @@ const email = computed(() => emailStore.contentData.email || {
   text: '',
   recipient: '[]',
 })
+
+const temporaryPrivacy = ref(null)
+const readingProtected = computed(() => temporaryPrivacy.value ?? privacy.protectReading)
+// Only this open message is overridden. Leaving it restores the default.
+watch(() => [email.value.emailId, emailStore.contentData.delType, privacy.accountKey, privacy.protectReading], () => {
+  temporaryPrivacy.value = null
+}, {flush: 'sync'})
+// This detail view is not kept alive: leaving discards the local override.
+// Do not reset before navigation, which could reload images while it unmounts.
 
 const sentViaEmail = computed(() => {
   const raw = String(email.value.senderEmail || '').trim()
@@ -240,6 +261,7 @@ function handleKeyDown(event) {
   if (event.key !== 'Escape') return;
   if (showPreview.value) return;
   if (document.querySelector('.el-message-box')) return;
+  if ([...document.querySelectorAll('.el-dialog')].some(dialog => dialog.getClientRects().length)) return;
   const writeBox = document.querySelector('.write-box');
   if (writeBox && writeBox.offsetParent !== null) return;
   handleBack();
@@ -381,6 +403,24 @@ const handleDelete = () => {
   .icon {
     cursor: pointer;
   }
+}
+
+.privacy-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+
+  &.is-protected, &:hover {color: var(--el-color-primary);}
+  &:focus-visible {outline: 2px solid var(--el-color-primary); outline-offset: 4px;}
 }
 
 
