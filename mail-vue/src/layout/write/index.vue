@@ -7,12 +7,42 @@
             <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
           </span>
           <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
+          <div class="sender-fields">
+            <el-input
+                v-model="form.name"
+                class="sender-name"
+                :placeholder="t('senderDisplayName')"
+                :aria-label="t('senderDisplayName')"
+                :title="t('senderDisplayNameHint')"
+                autocomplete="off"
+            />
+            <el-select
+                :model-value="form.accountId"
+                class="sender-account"
+                popper-class="compose-sender-options"
+                :aria-label="t('senderMailbox')"
+                :placeholder="t('senderMailbox')"
+                filterable
+                @change="changeSender"
+            >
+              <template #label>{{ form.sendEmail }}</template>
+              <el-option
+                  v-for="account in senderOptions"
+                  :key="account.accountId"
+                  :value="account.accountId"
+                  :label="account.email"
+              />
+              <template #footer v-if="canQueryAccounts && (senderHasMore || senderLoadError || senderLoading)">
+                <el-button link type="primary" :loading="senderLoading" @click="loadSenderAccounts()">
+                  {{ t(senderLoadError ? 'retrySenderMailboxes' : 'moreSenderMailboxes') }}
+                </el-button>
+              </template>
+            </el-select>
+          </div>
         </div>
-        <div @click="close" style="cursor: pointer;">
+        <button type="button" class="close-writer" :aria-label="t('closeComposer')" @click="close">
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
-        </div>
+        </button>
       </div>
       <div class="container">
         <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
@@ -126,6 +156,8 @@ import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
 import {prepareEmailHtml} from '@/utils/email-html.js';
 import {usePrivacyStore} from '@/store/privacy.js';
+import {accountList} from '@/request/account.js';
+import {defaultComposeSender, mergeSenderAccounts, sameComposeSender, selectComposeSender} from '@/utils/compose-sender.js';
 
 defineExpose({
   open,
@@ -150,12 +182,24 @@ const defValue = ref('')
 const contactsTabRef = ref({})
 const showContacts = ref(false)
 const mySelect = ref()
+const senderAccounts = ref([])
+const senderLoading = ref(false)
+const senderHasMore = ref(true)
+const senderLoadError = ref(false)
+let senderLoadVersion = 0
+let senderCursor = {accountId: 0, sort: undefined}
+const canQueryAccounts = computed(() => {
+  const permissions = userStore.user.permKeys || []
+  return permissions.includes('*') || permissions.includes('account:query')
+})
 let selectStatus = false
 const backReply = reactive({
   receiveEmail: [],
   subject: '',
   content: '',
-  sendType: ''
+  sendType: '',
+  accountId: -1,
+  name: ''
 })
 const form = reactive({
   sendEmail: '',
@@ -173,6 +217,43 @@ const form = reactive({
 })
 
 const selectRecipientList = ref([])
+const senderOptions = computed(() => mergeSenderAccounts(
+    [defaultComposeSender(userStore.user, accountStore.currentAccount)],
+    [defaultComposeSender(userStore.user)],
+    senderAccounts.value,
+    [{accountId: form.accountId, email: form.sendEmail}]
+))
+
+function changeSender(accountId) {
+  const account = senderOptions.value.find(item => item.accountId === accountId)
+  if (account) selectComposeSender(form, account)
+}
+
+async function loadSenderAccounts(reset = false) {
+  if (!canQueryAccounts.value) return
+  if (reset) {
+    senderLoadVersion++
+    senderAccounts.value = []
+    senderCursor = {accountId: 0, sort: undefined}
+    senderHasMore.value = true
+  } else if (senderLoading.value || !senderHasMore.value) {
+    return
+  }
+  const version = senderLoadVersion
+  senderLoading.value = true
+  senderLoadError.value = false
+  try {
+    const list = await accountList(senderCursor.accountId, 30, senderCursor.sort)
+    if (version !== senderLoadVersion) return
+    senderAccounts.value = mergeSenderAccounts(senderAccounts.value, list)
+    senderHasMore.value = list.length === 30
+    if (list.length) senderCursor = list.at(-1)
+  } catch {
+    if (version === senderLoadVersion) senderLoadError.value = true
+  } finally {
+    if (version === senderLoadVersion) senderLoading.value = false
+  }
+}
 
 const contacts = computed(() => writerStore.sendRecipientRecord.map(item => ({email: item})))
 const separateSendLabel = computed(() => t(form.sendType === 'forward' ? 'separateForward' : 'separateSend'))
@@ -479,6 +560,8 @@ function openForward(email) {
       backReply.subject = form.subject
       backReply.receiveEmail = form.receiveEmail
       backReply.sendType = form.sendType
+      backReply.accountId = form.accountId
+      backReply.name = form.name
     })
 
   });
@@ -520,6 +603,8 @@ function openReply(email) {
       backReply.subject = form.subject
       backReply.receiveEmail = form.receiveEmail
       backReply.sendType = form.sendType
+      backReply.accountId = form.accountId
+      backReply.name = form.name
     })
   })
 
@@ -533,24 +618,20 @@ function formatImage(content) {
 }
 
 function open() {
-  if (!accountStore.currentAccount.email) {
-    form.sendEmail = userStore.user.email;
-    form.accountId = userStore.user.account.accountId;
-    form.name = userStore.user.name;
-  } else {
-    form.sendEmail = accountStore.currentAccount.email;
-    form.accountId = accountStore.currentAccount.accountId;
-    form.name = accountStore.currentAccount.name;
-  }
+  if (show.value) return
+  selectComposeSender(form, defaultComposeSender(userStore.user, accountStore.currentAccount))
   show.value = true;
+  void loadSenderAccounts(true)
   editor.value.focus()
 }
 
 function openDraft(draft) {
+  resetForm()
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
   defValue.value = ''
   setTimeout(() => defValue.value = form.content)
   show.value = true;
+  void loadSenderAccounts(true)
   editor.value.focus()
 }
 
@@ -596,7 +677,7 @@ function close() {
     if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
       receiveFlag = true;
     }
-    if (subjectFlag && contentFlag && receiveFlag) {
+    if (subjectFlag && contentFlag && receiveFlag && sameComposeSender(form, backReply)) {
       resetForm();
       close()
       return;
@@ -641,6 +722,10 @@ function close() {
 .write-select .el-select-dropdown {
   min-width: 0 !important;
 }
+
+.compose-sender-options .el-select-dropdown__wrap {
+  max-height: min(274px, 35dvh);
+}
 </style>
 <style scoped lang="scss">
 .send {
@@ -678,39 +763,66 @@ function close() {
 
     .title {
       display: flex;
+      align-items: flex-start;
       justify-content: space-between;
+      gap: 12px;
       margin-bottom: 10px;
 
       .title-left {
         align-items: center;
-        display: grid;
-        grid-template-columns: auto auto auto 1fr;
-      }
-
-      .title-text {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        gap: 8px;
+        flex-wrap: wrap;
       }
 
       .sender {
-        margin-left: 8px;
+        white-space: nowrap;
+      }
+
+      .sender-fields {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-width: 0;
+        max-width: 100%;
       }
 
       .sender-name {
-        margin-left: 8px;
-        font-weight: bold;
+        width: 160px;
+        max-width: 100%;
       }
 
-      .send-email {
-        color: #999896;
-        margin-left: 5px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
+      .sender-account {
+        width: 300px;
+        max-width: 100%;
       }
 
-
-      div {
+      .close-writer {
         display: flex;
         align-items: center;
+        justify-content: center;
+        flex: none;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        border-radius: var(--el-border-radius-base);
+        background: transparent;
+        color: var(--el-text-color-primary);
+        cursor: pointer;
+
+        &:hover { background: var(--el-fill-color-light); }
+        &:focus-visible { outline: 2px solid var(--el-color-primary); }
+      }
+
+      @media (max-width: 600px) {
+        .sender-fields { width: 100%; }
+        .sender-name { width: 100%; }
+        .sender-account { width: 100%; }
+        :deep(.sender-name input), :deep(.sender-account input) { font-size: 16px; }
       }
     }
 

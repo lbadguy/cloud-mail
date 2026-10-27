@@ -67,6 +67,14 @@ Inbound messages for addresses that do not yet exist remain isolated with `user_
 - Claiming restores the message to the inbox and updates both the email and attachment ownership in one D1 batch transaction.
 - Missing accounts, already-claimed messages, and other non-matches are skipped and reported to the administrator.
 
+## Compose sender controls
+
+The compose header lets users edit the display name for one message and choose among their own mailboxes without changing the mailbox currently selected in the sidebar. It reuses `/account/list` with its existing 30-item cursor pagination and permissions; `/email/send` still resolves the sender address from the owned `accountId`. No database migration is needed.
+
+Drafts retain the selected mailbox and per-message name. Sender-only edits in replies and forwards count as changes when deciding whether to save a draft. The default mailbox name is not renamed. `manyType=divide` sends one independent message per recipient; the existing Resend path supports up to 100 recipients and rejects attachments in this mode.
+
+Sender state helpers and tests: `mail-vue/src/utils/compose-sender.js`, `mail-vue/test/compose-sender.test.js`. UI: `mail-vue/src/layout/write/index.vue`.
+
 ## 5. Upstream update workflow
 
 The workflow `.github/workflows/sync-upstream.yml` is disabled by default and can only be started manually.
