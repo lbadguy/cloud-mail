@@ -61,9 +61,17 @@
                     {{ $t('possiblyOpened') }} · {{ email.openCount }} · {{ formatDetailDate(email.lastOpenedAt) }}
                   </el-tag>
                 </OpenEventsPopover>
-                <el-tag v-if="email.clickCount" type="success" effect="plain">
-                  {{ $t('linkClicked') }} · {{ email.clickCount }} · {{ formatDetailDate(email.lastClickedAt) }}
-                </el-tag>
+                <OpenEventsPopover
+                    v-if="email.clickCount"
+                    :email-id="email.emailId"
+                    :click-count="email.clickCount"
+                    event-type="click"
+                    :admin="emailStore.contentData.delType === 'physics'"
+                >
+                  <el-tag type="success" effect="plain" class="tracking-tag">
+                    {{ $t('linkClicked') }} · {{ email.clickCount }} · {{ formatDetailDate(email.lastClickedAt) }}
+                  </el-tag>
+                </OpenEventsPopover>
               </div>
             </div>
             <el-alert v-if="email.status === 3" :closable="false" :title="toMessage(email.message)" class="email-msg" type="error" show-icon />

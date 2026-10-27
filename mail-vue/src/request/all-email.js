@@ -23,3 +23,7 @@ export function allEmailOpenEvents(emailId) {
 export function allEmailClaimNoRecipient(emailIds) {
     return http.put('/allEmail/claimNoRecipient', {emailIds})
 }
+
+export function allEmailClickEvents(emailId) {
+    return http.get('/allEmail/clickEvents', {params: {emailId}})
+}

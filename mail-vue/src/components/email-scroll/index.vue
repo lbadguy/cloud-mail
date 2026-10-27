@@ -77,9 +77,17 @@
                         <Icon icon="material-symbols:done-all" color="#409EFF" width="20" height="20"/>
                       </el-tooltip>
                     </OpenEventsPopover>
-                    <el-tooltip v-if="item.clickCount" effect="dark" :content="item.clickedContent">
-                      <Icon icon="mdi:cursor-default-click" color="#9B59B6" width="20" height="20"/>
-                    </el-tooltip>
+                    <OpenEventsPopover
+                        v-if="item.clickCount"
+                        :email-id="item.emailId"
+                        :click-count="item.clickCount"
+                        event-type="click"
+                        :admin="props.type === 'all-email'"
+                    >
+                      <el-tooltip effect="dark" :content="item.clickedContent">
+                        <Icon icon="mdi:cursor-default-click" color="#9B59B6" width="20" height="20"/>
+                      </el-tooltip>
+                    </OpenEventsPopover>
                     <div class="del-status" v-if="item.isDel && item.status !== 6">
                       <el-tooltip effect="dark" :content="item.isDelContent">
                         <Icon class="icon" icon="mdi:email-remove" width="20" height="20"/>

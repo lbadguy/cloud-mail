@@ -1294,7 +1294,15 @@ const emailService = {
 		return emailRow;
 	},
 
-	async openEvents(c, params, userId) {
+	openEvents(c, params, userId) {
+		return this.engagementEvents(c, params, userId, 'email.opened');
+	},
+
+	clickEvents(c, params, userId) {
+		return this.engagementEvents(c, params, userId, 'email.clicked');
+	},
+
+	async engagementEvents(c, params, userId, eventType) {
 		const emailId = Number(params?.emailId);
 		if (!Number.isInteger(emailId) || emailId <= 0) {
 			return [];
@@ -1308,13 +1316,13 @@ const emailService = {
 			FROM email_tracking_event te
 			INNER JOIN email e ON e.email_id = te.email_id
 			WHERE te.email_id = ?
-				AND te.event_type = 'email.opened'
+				AND te.event_type = ?
 				${ownerFilter}
 			ORDER BY te.occurred_at DESC, te.event_id DESC
 		`);
 		const query = userId === undefined
-			? statement.bind(emailId)
-			: statement.bind(emailId, userId);
+			? statement.bind(emailId, eventType)
+			: statement.bind(emailId, eventType, userId);
 
 		const result = await query.all();
 		return result.results || [];

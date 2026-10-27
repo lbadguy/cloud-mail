@@ -45,3 +45,7 @@ export function emailSend(form,progress) {
         noMsg: true
     })
 }
+
+export function emailClickEvents(emailId) {
+    return http.get('/email/clickEvents', {params: {emailId}})
+}

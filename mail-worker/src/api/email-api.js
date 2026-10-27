@@ -16,6 +16,13 @@ app.get('/email/latest', async (c) => {
 
 app.get('/email/openEvents', async (c) => {
 	const list = await emailService.openEvents(c, c.req.query(), userContext.getUserId(c));
+	c.header('Cache-Control', 'no-store');
+	return c.json(result.ok(list));
+});
+
+app.get('/email/clickEvents', async (c) => {
+	const list = await emailService.clickEvents(c, c.req.query(), userContext.getUserId(c));
+	c.header('Cache-Control', 'no-store');
 	return c.json(result.ok(list));
 });
 

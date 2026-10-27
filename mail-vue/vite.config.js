@@ -5,10 +5,12 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 import {VitePWA} from 'vite-plugin-pwa';
+import {loadHistory} from './scripts/changelog.mjs'
 
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), 'VITE')
     return {
+        define: {__FORK_COMMITS__: JSON.stringify(loadHistory())},
         server: {
             host: true,
             port: 3001,

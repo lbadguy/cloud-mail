@@ -144,13 +144,14 @@
         </el-button>
       </div>
     </el-dialog>
-    <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail">
+    <a v-show="settingStore.settings.projectLink" class="github" :href="repositoryUrl" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
       <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
     </a>
   </div>
 </template>
 
 <script setup>
+import {repositoryUrl} from '@/utils/project.js'
 import router from "@/router";
 import {useRoute} from "vue-router";
 import {computed, nextTick, reactive, ref} from "vue";

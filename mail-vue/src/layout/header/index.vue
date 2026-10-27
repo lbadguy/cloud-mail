@@ -33,6 +33,11 @@
       @reset="returnToList('send')"
     />
     <div class="toolbar">
+      <el-tooltip :content="t('forkChangelog')" :trigger="['hover', 'focus']">
+        <button type="button" class="github-toggle icon-item" :aria-label="t('forkChangelog')" @click="changelogVisible = true">
+          <Icon icon="mingcute:github-line" width="21" height="21"/>
+        </button>
+      </el-tooltip>
       <el-dropdown class="theme-dropdown" trigger="click" @command="changeTheme">
         <button type="button" class="theme-toggle icon-item" :aria-label="$t('themeMode')" :title="$t('themeMode')">
           <Icon :icon="themeIcon"/>
@@ -113,6 +118,7 @@
         </template>
       </el-dropdown>
     </div>
+    <ForkChangelog v-if="changelogVisible" v-model="changelogVisible"/>
   </div>
 </template>
 
@@ -124,7 +130,7 @@ import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
-import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import {computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
@@ -133,6 +139,8 @@ import emailSearch from '@/components/email-search/index.vue'
 import {useEmailStore} from '@/store/email.js'
 import {useSendStore} from '@/store/send.js'
 
+const ForkChangelog = defineAsyncComponent(() => import('@/components/fork-changelog/index.vue'))
+const changelogVisible = ref(false)
 const {t} = useI18n();
 const route = useRoute();
 const settingStore = useSettingStore();
@@ -532,6 +540,18 @@ onBeforeUnmount(() => {
     align-items: center;
   }
 
+  .github-toggle {
+    padding: 0;
+    border: 0;
+    color: var(--el-text-color-primary);
+    background: transparent;
+
+    &:focus-visible {
+      outline: 2px solid var(--el-color-primary);
+      outline-offset: 2px;
+    }
+  }
+
   .theme-toggle {
     font-size: 20px;
   }
@@ -587,7 +607,7 @@ onBeforeUnmount(() => {
   color: var(--el-color-primary);
 }
 
-.el-tooltip__trigger:first-child:focus-visible {
+.el-tooltip__trigger:first-child:focus-visible:not(.github-toggle) {
   outline: unset;
 }
 </style>

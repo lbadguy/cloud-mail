@@ -36,8 +36,8 @@ describe('Email open-event history', () => {
 
 		await expect(emailService.openEvents(context, {emailId: '42'}, 7)).resolves.toEqual(rows)
 		expect(state.sql).toContain('AND e.user_id = ?')
-		expect(state.sql).toContain("te.event_type = 'email.opened'")
-		expect(state.binds).toEqual([42, 7])
+		expect(state.sql).toContain('te.event_type = ?')
+		expect(state.binds).toEqual([42, 'email.opened', 7])
 	})
 
 	it('lets the administrator query through the permission-protected route', async () => {
@@ -45,7 +45,7 @@ describe('Email open-event history', () => {
 
 		await expect(emailService.openEvents(context, {emailId: 42})).resolves.toEqual([])
 		expect(state.sql).not.toContain('AND e.user_id = ?')
-		expect(state.binds).toEqual([42])
+		expect(state.binds).toEqual([42, 'email.opened'])
 	})
 
 	it('does not query invalid email identifiers', async () => {
@@ -54,4 +54,27 @@ describe('Email open-event history', () => {
 		await expect(emailService.openEvents(context, {emailId: 'invalid'}, 7)).resolves.toEqual([])
 		expect(context.env.db.prepare).not.toHaveBeenCalled()
 	})
+})
+
+
+describe('Email click-event history', () => {
+ it('queries only click events and scopes them to the owner', async () => {
+  const rows = [{eventId: 'click_2', occurredAt: '2026-10-27T12:00:00.000Z'}]
+  const {context, state} = createContext(rows)
+  await expect(emailService.clickEvents(context, {emailId: '42'}, 7)).resolves.toEqual(rows)
+  expect(state.sql).toContain('AND e.user_id = ?')
+  expect(state.sql).toContain('ORDER BY te.occurred_at DESC, te.event_id DESC')
+  expect(state.binds).toEqual([42, 'email.clicked', 7])
+ })
+ it('allows the permission-protected all-mail query', async () => {
+  const {context, state} = createContext([])
+  await expect(emailService.clickEvents(context, {emailId: 42})).resolves.toEqual([])
+  expect(state.sql).not.toContain('AND e.user_id = ?')
+  expect(state.binds).toEqual([42, 'email.clicked'])
+ })
+ it.each(['invalid', -1, 0, 1.5])('ignores invalid email id %s', async emailId => {
+  const {context} = createContext([])
+  await expect(emailService.clickEvents(context, {emailId}, 7)).resolves.toEqual([])
+  expect(context.env.db.prepare).not.toHaveBeenCalled()
+ })
 })

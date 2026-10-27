@@ -2,6 +2,7 @@
   <el-popover
       placement="bottom"
       :width="320"
+      :popper-style="{maxWidth: 'calc(100vw - 24px)'}"
       trigger="click"
       @show="loadEvents"
   >
@@ -9,7 +10,7 @@
       <button
           type="button"
           class="open-events-trigger"
-          :aria-label="t('viewOpenHistory')"
+          :aria-label="t(isClick ? 'viewClickHistory' : 'viewOpenHistory')"
           @click.stop
       >
         <slot />
@@ -18,13 +19,13 @@
 
     <div class="open-events-popover" @click.stop>
       <div class="popover-heading">
-        <strong>{{ t('openHistory') }}</strong>
-        <span>{{ t('openedCount', { count: openCount }) }}</span>
+        <strong>{{ t(isClick ? 'clickHistory' : 'openHistory') }}</strong>
+        <span>{{ t(isClick ? 'clickedCount' : 'openedCount', { count: eventCount }) }}</span>
       </div>
 
       <el-skeleton v-if="loading" :rows="3" animated />
       <div v-else-if="loadFailed" class="load-failed">
-        <span>{{ t('openHistoryLoadFailed') }}</span>
+        <span>{{ t(isClick ? 'clickHistoryLoadFailed' : 'openHistoryLoadFailed') }}</span>
         <el-button link type="primary" @click="loadEvents">{{ t('retry') }}</el-button>
       </div>
       <el-scrollbar v-else-if="events.length" max-height="240px">
@@ -35,19 +36,19 @@
           </li>
         </ol>
       </el-scrollbar>
-      <el-empty v-else :image-size="52" :description="t('noOpenHistory')" />
+      <el-empty v-else :image-size="52" :description="t(isClick ? 'noClickHistory' : 'noOpenHistory')" />
 
-      <p class="tracking-note">{{ t('trackingPixelNotice') }}</p>
+      <p class="tracking-note">{{ t(isClick ? 'trackingClickNotice' : 'trackingPixelNotice') }}</p>
     </div>
   </el-popover>
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {formatDetailDate} from '@/utils/day.js'
-import {emailOpenEvents} from '@/request/email.js'
-import {allEmailOpenEvents} from '@/request/all-email.js'
+import {emailOpenEvents, emailClickEvents} from '@/request/email.js'
+import {allEmailOpenEvents, allEmailClickEvents} from '@/request/all-email.js'
 
 const props = defineProps({
   emailId: {
@@ -58,6 +59,8 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  clickCount: {type: Number, default: 0},
+  eventType: {type: String, default: 'open', validator: value => ['open', 'click'].includes(value)},
   admin: {
     type: Boolean,
     default: false,
@@ -65,23 +68,39 @@ const props = defineProps({
 })
 
 const {t} = useI18n()
+const isClick = computed(() => props.eventType === 'click')
+const eventCount = computed(() => isClick.value ? props.clickCount : props.openCount)
 const events = ref([])
 const loading = ref(false)
 const loadFailed = ref(false)
 
+let requestVersion = 0
+watch(() => [props.emailId, props.admin, props.eventType], () => {
+  requestVersion++
+  events.value = []
+  loading.value = false
+  loadFailed.value = false
+})
+
 async function loadEvents() {
   if (loading.value) return
+  const version = ++requestVersion
   loading.value = true
   loadFailed.value = false
 
   try {
-    const request = props.admin ? allEmailOpenEvents : emailOpenEvents
-    events.value = await request(props.emailId)
+    const request = isClick.value
+        ? (props.admin ? allEmailClickEvents : emailClickEvents)
+        : (props.admin ? allEmailOpenEvents : emailOpenEvents)
+    const data = await request(props.emailId)
+    if (version === requestVersion) events.value = data
   } catch (error) {
-    loadFailed.value = true
-    events.value = []
+    if (version === requestVersion) {
+      loadFailed.value = true
+      events.value = []
+    }
   } finally {
-    loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 </script>

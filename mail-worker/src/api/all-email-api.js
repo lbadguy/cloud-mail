@@ -25,8 +25,15 @@ app.get('/allEmail/latest', async (c) => {
 
 app.get('/allEmail/openEvents', async (c) => {
 	const list = await emailService.openEvents(c, c.req.query());
+	c.header('Cache-Control', 'no-store');
 	return c.json(result.ok(list));
 })
+
+app.get('/allEmail/clickEvents', async (c) => {
+	const list = await emailService.clickEvents(c, c.req.query());
+	c.header('Cache-Control', 'no-store');
+	return c.json(result.ok(list));
+});
 
 app.get('/allEmail/source', async (c) => {
 	const data = await emailService.source(c, c.req.query());
