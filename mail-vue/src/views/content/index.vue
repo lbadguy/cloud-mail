@@ -90,16 +90,18 @@
             <div class="att-box">
 
               <div class="att-item" v-for="att in email.attList" :key="att.attId">
-                <div class="att-icon" @click="showImage(att.key)">
+                <div class="att-icon">
                   <Icon v-bind="getIconByName(att.filename)" />
                 </div>
-                <div class="att-name" @click="showImage(att.key)">
+                <button type="button" class="att-name" :disabled="!previewKind(att.filename)" :title="att.filename" @click="previewAttachment(att)">
                   {{ att.filename }}
-                </div>
+                </button>
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
-                  <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att.key)"/>
-                  <a :href="cvtR2Url(att.key)" download>
+                  <el-tooltip v-if="previewKind(att.filename)" :content="t('attachmentPreview')">
+                    <button type="button" class="attachment-action" :aria-label="t('previewAttachmentName', {name:att.filename})" @click="previewAttachment(att)"><Icon icon="hugeicons:view" width="22" height="22" /></button>
+                  </el-tooltip>
+                  <a :href="cvtR2Url(att.key)" download :aria-label="t('previewDownload')">
                     <Icon icon="system-uicons:push-down" width="22" height="22"/>
                   </a>
                 </div>
@@ -109,17 +111,18 @@
         </div>
       </div>
     </el-scrollbar>
-    <el-image-viewer
+    <AttachmentPreview
         v-if="showPreview"
-        :url-list="srcList"
-        show-progress
-        @close="showPreview = false"
+        v-model="showPreview"
+        :attachment="selectedAttachment"
+        :email-id="email.emailId"
+        :admin="emailStore.contentData.delType === 'physics'"
     />
   </div>
 </template>
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
-import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
+import {computed, defineAsyncComponent, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailDelete, emailRead, permanentDeleteEmails, restoreEmails} from "@/request/email.js";
@@ -128,7 +131,8 @@ import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
 import {formatDetailDate} from "@/utils/day.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {getExtName, formatBytes} from "@/utils/file-utils.js";
+import {formatBytes} from "@/utils/file-utils.js";
+import {previewKind} from '@/utils/attachment-preview.js'
 import {cvtR2Url,toOssDomain} from "@/utils/convert.js";
 import {getIconByName} from "@/utils/icon-utils.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -152,7 +156,8 @@ const senderWrapped = ref(false)
 let senderResizeObserver = null
 
 const showPreview = ref(false)
-const srcList = reactive([])
+const selectedAttachment = ref(null)
+const AttachmentPreview = defineAsyncComponent(() => import('@/components/attachment-preview/index.vue'))
 
 
 const email = computed(() => emailStore.contentData.email || {
@@ -293,16 +298,10 @@ function formatImage(content) {
   return  content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
 }
 
-function showImage(key) {
-  if (!isImage(key)) return;
-  const url = cvtR2Url(key)
-  srcList.length = 0
-  srcList.push(url)
+function previewAttachment(attachment) {
+  if (!previewKind(attachment.filename)) return
+  selectedAttachment.value = attachment
   showPreview.value = true
-}
-
-function isImage(filename) {
-  return ['png', 'jpg', 'jpeg', 'bmp', 'gif','jfif'].includes(getExtName(filename))
 }
 
 function formateReceive(recipient) {
@@ -388,6 +387,17 @@ const handleDelete = () => {
 
 .tracking-tag {
   cursor: pointer;
+}
+
+.attachment-action {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  &:focus-visible {outline: 2px solid var(--el-color-primary);outline-offset: 2px;}
 }
 
 .box {
@@ -504,12 +514,21 @@ const handleDelete = () => {
         }
 
         .att-name {
+          border: 0;
+          background: transparent;
+          padding: 0;
+          font: inherit;
+          color: inherit;
+          cursor: pointer;
+          text-align: left;
           margin-left: 8px;
           margin-right: 8px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           word-break: break-all;
+          &:disabled {cursor: default;}
+          &:focus-visible {outline: 2px solid var(--el-color-primary);}
         }
 
         .att-image {

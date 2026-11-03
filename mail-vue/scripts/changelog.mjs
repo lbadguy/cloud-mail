@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
-import {commitNotes, historicalCommits} from '../src/data/fork-history.js'
+import {commitNotes, historicalCommits, currentChangeSubject} from '../src/data/fork-history.js'
 
 export const forkBase = 'ec7a2bb'
 
@@ -17,7 +17,7 @@ export function parseCommits(output) {
 export function buildHistory(commits) {
     return commits.map(commit => ({
         ...commit,
-        title: commitNotes[commit.sha.slice(0, 7)] || (commit.subject === 'feat: add fork changelog and email click history' ? ['增加站内更新日志和每次链接点击记录', 'Add the fork changelog and link-click history'] : null) || [commit.subject, commit.subject],
+        title: commitNotes[commit.sha.slice(0, 7)] || (commit.subject === currentChangeSubject ? ['增加附件预览与预览隐私保护', 'Add attachment previews and preview privacy'] : null) || [commit.subject, commit.subject],
     }))
 }
 

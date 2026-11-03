@@ -189,3 +189,18 @@ Use PowerShell 7, stop on failures, and check native exit codes. Note: upstream 
 - Personal and all-mail click history routes: `/email/clickEvents`, `/allEmail/clickEvents`. They reuse existing tracking rows and ownership/all-mail permissions. Both open and click histories are returned with `Cache-Control: no-store`; no database migration is required.
 - Click indicators in lists and detail views open the same history component as open indicators. Event types are queried separately, newest first, and times follow the existing detail-date formatter.
 - This feature does not collect or retain IP addresses, User-Agent values, or clicked URLs. Older tracking rows cannot supply those fields.
+
+## Attachment previews
+
+Mail detail attachments use a lazy-loaded, site-hosted preview dialog. Both personal mail and All Mail are supported. New binary endpoints `/email/attachmentPreview` and `/allEmail/attachmentPreview` resolve attachment IDs through D1, require matching email ownership or the existing All Mail read permission, and read only a saved `attachments/` storage key. Responses are streamed with a 25 MiB cap, `no-store`, `nosniff`, and an attachment disposition. No database changes are required. Existing public storage/download routes are unchanged by this feature.
+
+- PDF: PDF.js canvas and text layers, page thumbnails, page navigation, zoom and fit width. Fonts, CMaps and decoders are shipped with the site. No scripting manager, annotation links, forms or XFA are enabled. Password-protected PDFs and documents over 500 pages fall back to downloading.
+- Raster images: verify file signatures, decode and re-encode to a local PNG for display. SVG and HTML are not supported.
+- Text: TXT/CSV/TSV/JSON/Markdown/XML/YAML/log files are escaped as text, not rendered as HTML or Markdown. UTF-8, UTF-16 BOM and GB18030 are handled. Limit: 2 MiB.
+- DOCX: Mammoth in a terminable worker, with external file access disabled. Converted HTML is allowlisted and placed in a scriptless, opaque-origin sandbox with a restrictive CSP. This is a reading view, not original page layout.
+- XLSX: read-excel-file in a worker, displaying saved values without formula evaluation, external relationships, charts or embedded objects. Up to 50 sheets; each preview shows at most 500 rows and 100 columns and reports truncation.
+- Legacy DOC/XLS, PPT/PPTX, macro-enabled Office files, archives and other formats remain download-only. No online Office/Google viewer receives attachments or public file URLs.
+
+Previews always block document remote content, independent of the mail-body privacy toggle. They do not claim to protect files subsequently opened in another app or prevent users from intentionally visiting links elsewhere. ZIP expansion is checked before Office parsing; parsing has a 15-second timeout and workers are terminated on close. New custom features must be added separately to `mail-vue/src/data/fork-history.js`; commit history is generated automatically.
+
+Relevant checks: frontend `test/attachment-preview.test.js`, Worker `test/attachment-preview-auth.unit.spec.js`, frontend production build and Wrangler dry-run. Use synthetic hostile documents to verify external requests remain blocked; do not send real mail as part of routine preview QA.

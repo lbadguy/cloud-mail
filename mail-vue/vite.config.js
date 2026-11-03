@@ -6,6 +6,7 @@ import Components from 'unplugin-vue-components/vite'
 import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 import {VitePWA} from 'vite-plugin-pwa';
 import {loadHistory} from './scripts/changelog.mjs'
+import {pdfAssets} from './scripts/pdf-assets.mjs'
 
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), 'VITE')
@@ -17,7 +18,7 @@ export default defineConfig(({mode}) => {
             hmr: true,
         },
         base: env.VITE_STATIC_URL || '/',
-        plugins: [vue(),
+        plugins: [vue(), pdfAssets(),
             VitePWA({
                 injectRegister: 'script-defer',
                 manifest: {

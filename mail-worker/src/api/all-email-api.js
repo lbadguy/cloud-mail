@@ -2,6 +2,9 @@ import app from '../hono/hono';
 import emailService from '../service/email-service';
 import result from '../model/result';
 import userContext from '../security/user-context';
+import {attachmentPreview} from '../service/attachment-preview-service';
+
+app.get('/allEmail/attachmentPreview', c => attachmentPreview(c, c.req.query()));
 
 app.get('/allEmail/list', async (c) => {
 	const data = await emailService.allList(c, c.req.query());

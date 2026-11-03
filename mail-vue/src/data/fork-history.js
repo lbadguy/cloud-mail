@@ -1,6 +1,7 @@
 // Each feature is kept separate; commits retain fixes and operational changes too.
 // Text pairs are [Chinese, English]. Keep future feature additions in this list.
 export const commitNotes = {
+    '0a76f54': ['增加站内更新日志和链接点击时间记录', 'Add an in-app changelog and link-click history'],
     '2518ee8': ['撰写邮件时选择发件邮箱和名字', 'Choose the sender mailbox and name when composing'],
     'b50d168': ['精简隐私提示，调整邮件工具栏和来源弹窗', 'Simplify privacy controls and source details'],
     '262d6d7': ['增加阅读隐私保护和邮件来源信息', 'Add reading privacy and source headers'],
@@ -26,12 +27,17 @@ export const commitNotes = {
     'b3374f6': ['首次加入打开和点击回执，以及部署、同步流程', 'Add engagement tracking and guarded cloud workflows'],
 }
 
-export const currentChangeSubject = 'feat: add fork changelog and email click history'
+export const currentChangeSubject = 'feat: add private attachment previews'
 
 export const features = [
-    ['changelog', currentChangeSubject, ['站内更新日志', 'In-app changelog'], ['分别查看本仓库的功能和历次提交，可跳转到具体改动。', 'Browse fork features and commits, with links to each change.']],
-    ['repository', currentChangeSubject, ['本仓库入口', 'Fork repository links'], ['登录页 GitHub 按钮指向本仓库，顶部 GitHub 图标打开更新日志。', 'The login link opens this fork; the header icon opens its changelog.']],
-    ['click-history', currentChangeSubject, ['每次链接点击时间', 'Link-click history'], ['点击“已点击邮件链接”标签或列表图标，查看每次记录的时间。', 'Click a link-click badge or list icon to see recorded timestamps.']],
+    ['attachment-pdf', currentChangeSubject, ['PDF 附件预览', 'PDF attachment preview'], ['站内翻页、缩略图、缩放和文字选择，不用先下载。', 'Read PDFs with page navigation, thumbnails, zoom and text selection.']],
+    ['attachment-word', currentChangeSubject, ['Word 正文预览', 'Word reading view'], ['DOCX 转为只读正文，保留基本段落、图片和表格。', 'Read DOCX paragraphs, embedded images and tables in a simplified layout.']],
+    ['attachment-excel', currentChangeSubject, ['Excel 表格预览', 'Excel sheet preview'], ['XLSX 显示已有单元格值，可切换工作表，不计算公式。', 'Browse saved XLSX cell values and switch sheets without calculating formulas.']],
+    ['attachment-text', currentChangeSubject, ['图片与文本附件预览', 'Image and text previews'], ['支持常见图片、TXT、CSV、JSON 等文本附件。', 'Preview common raster images and text files such as TXT, CSV and JSON.']],
+    ['attachment-privacy', currentChangeSubject, ['附件预览隐私保护', 'Private attachment previews'], ['校验邮件权限，只读本站文件，阻断外部资源和文档脚本。', 'Check mail access, read saved files, and block external resources and document scripts.']],
+    ['changelog', '0a76f54', ['站内更新日志', 'In-app changelog'], ['分别查看本仓库的功能和历次提交，可跳转到具体改动。', 'Browse fork features and commits, with links to each change.']],
+    ['repository', '0a76f54', ['本仓库入口', 'Fork repository links'], ['登录页 GitHub 按钮指向本仓库，顶部 GitHub 图标打开更新日志。', 'The login link opens this fork; the header icon opens its changelog.']],
+    ['click-history', '0a76f54', ['每次链接点击时间', 'Link-click history'], ['点击“已点击邮件链接”标签或列表图标，查看每次记录的时间。', 'Click a link-click badge or list icon to see recorded timestamps.']],
     ['sender-mailbox', '2518ee8', ['撰写时切换发件邮箱', 'Choose a sender mailbox'], ['直接从撰写窗口选择自己的邮箱，不用切换侧栏。', 'Select one of your mailboxes inside the composer.']],
     ['sender-name', '2518ee8', ['单封邮件发件人名字', 'Per-message sender name'], ['可为当前邮件改名字，不修改邮箱的默认名称。', 'Edit the display name for one message without renaming the mailbox.']],
     ['sender-draft', '2518ee8', ['草稿保留发件人', 'Save the sender in drafts'], ['所选邮箱和临时名字随草稿保存；回复和转发也会提醒保存。', 'Drafts retain the chosen mailbox and name, including reply and forward edits.']],
@@ -69,6 +75,11 @@ export const features = [
 
 // Reviewed snapshot for builds from source archives without a .git directory.
 export const historicalCommits = [
+    {
+        "sha": "0a76f54f316b8b7cd460c7b1ee27bbf839c95741",
+        "date": "2026-10-27",
+        "subject": "feat: add fork changelog and email click history"
+    },
     {
         "sha": "2518ee8cc399e27f64b1fc0d9835390b9d975e50",
         "date": "2026-10-27",

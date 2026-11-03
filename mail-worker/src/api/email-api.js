@@ -3,6 +3,9 @@ import emailService from '../service/email-service';
 import result from '../model/result';
 import userContext from '../security/user-context';
 import attService from '../service/att-service';
+import {attachmentPreview} from '../service/attachment-preview-service';
+
+app.get('/email/attachmentPreview', c => attachmentPreview(c, c.req.query(), userContext.getUserId(c)));
 
 app.get('/email/list', async (c) => {
 	const data = await emailService.list(c, c.req.query(), userContext.getUserId(c));
